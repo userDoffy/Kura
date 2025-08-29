@@ -1,0 +1,5 @@
+1) Login 2FA with ui and profile design (done)
+2) Add And Remove Friends (done)
+3) Chat and Video Call
+4) End to End encryption
+5) 
