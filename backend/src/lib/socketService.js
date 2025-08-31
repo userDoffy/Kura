@@ -12,11 +12,23 @@ class SocketService {
         credentials: true,
       },
       transports: ["websocket", "polling"],
+      // Add max file size limit (10MB)
+      maxHttpBufferSize: 10 * 1024 * 1024
     });
 
     this.onlineUsers = new Map(); // userId -> socketId
     this.userSockets = new Map(); // socketId -> userId
     this.typingUsers = new Map(); // chatId -> Set of userIds
+
+    // File size limits
+    this.MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    this.ALLOWED_FILE_TYPES = [
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'application/pdf', 'text/plain', 'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
 
     this.setupMiddleware();
     this.setupEventHandlers();
@@ -48,6 +60,31 @@ class SocketService {
         next(new Error("Authentication error"));
       }
     });
+  }
+
+  // Helper method to convert file buffer to base64 data URL
+  getFileUrl(fileData, fileName) {
+    if (!fileData || !fileName) return null;
+    
+    // Get MIME type from file extension
+    const ext = fileName.split('.').pop().toLowerCase();
+    const mimeTypes = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'webp': 'image/webp',
+      'pdf': 'application/pdf',
+      'txt': 'text/plain',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'xls': 'application/vnd.ms-excel',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    };
+    
+    const mimeType = mimeTypes[ext] || 'application/octet-stream';
+    const base64 = fileData.toString('base64');
+    return `data:${mimeType};base64,${base64}`;
   }
 
   setupEventHandlers() {
@@ -93,20 +130,31 @@ class SocketService {
 
           callback({
             success: true,
-            messages: messages.map((msg) => ({
-              _id: msg._id,
-              content: msg.content, // Encrypted content from DB
-              senderId: msg.senderId._id,
-              receiverId: msg.receiverId,
-              senderInfo: {
-                fullName: msg.senderId.fullName,
-                username: msg.senderId.username,
-                profilepic: msg.senderId.profilepic,
-              },
-              timestamp: msg.timestamp,
-              read: msg.read,
-              messageType: msg.messageType || "text",
-            })),
+            messages: messages.map((msg) => {
+              const baseMessage = {
+                _id: msg._id,
+                content: msg.content, // Encrypted content from DB
+                senderId: msg.senderId._id,
+                receiverId: msg.receiverId,
+                senderInfo: {
+                  fullName: msg.senderId.fullName,
+                  username: msg.senderId.username,
+                  profilepic: msg.senderId.profilepic,
+                },
+                timestamp: msg.timestamp,
+                read: msg.read,
+                messageType: msg.messageType || "text",
+              };
+
+              // Add file-specific data if it's a file message
+              if (msg.messageType === "file") {
+                baseMessage.fileName = msg.fileName;
+                baseMessage.fileUrl = this.getFileUrl(msg.fileData, msg.fileName);
+                baseMessage.fileSize = msg.fileData ? msg.fileData.length : 0;
+              }
+
+              return baseMessage;
+            }),
           });
         } catch (error) {
           console.error("Error loading messages:", error);
@@ -176,7 +224,7 @@ class SocketService {
               callback({
                 success: true,
                 message: messageData.message,
-                tempId
+                tempId,
               });
             }
 
@@ -197,6 +245,114 @@ class SocketService {
             const errorMessage = "Failed to send message";
             socket.emit("error", { message: errorMessage });
             if (callback) callback({ success: false, error: errorMessage });
+          }
+        }
+      );
+
+      // Handle sending files
+      socket.on(
+        "sendFile",
+        async ({ chatId, content, fileName, fileData, receiverId, tempId }, callback) => {
+          try {
+            const senderId = socket.userId;
+
+            if (!receiverId || !fileName || !fileData) {
+              return callback?.({ success: false, error: "Invalid file data" });
+            }
+
+            // Validate file size
+            const fileBuffer = Buffer.from(fileData);
+            if (fileBuffer.length > this.MAX_FILE_SIZE) {
+              return callback?.({ 
+                success: false, 
+                error: `File size exceeds limit of ${this.MAX_FILE_SIZE / (1024 * 1024)}MB` 
+              });
+            }
+
+            // Validate file type (optional - you can enable this if needed)
+            // const fileExtension = fileName.split('.').pop().toLowerCase();
+            // if (!this.ALLOWED_FILE_TYPES.some(type => type.includes(fileExtension))) {
+            //   return callback?.({ success: false, error: "File type not allowed" });
+            // }
+
+            // Verify receiver exists
+            const receiver = await User.findById(receiverId);
+            if (!receiver) {
+              return callback?.({
+                success: false,
+                error: "Receiver not found",
+              });
+            }
+
+            // Save message with file
+            const message = new Message({
+              chatId,
+              senderId,
+              receiverId,
+              content: content || `[File: ${fileName}]`,
+              messageType: "file",
+              fileName,
+              fileData: fileBuffer,
+              timestamp: new Date(),
+            });
+
+            await message.save();
+            await message.populate("senderId", "fullName username profilepic");
+
+            // Create file URL for immediate use
+            const fileUrl = this.getFileUrl(fileBuffer, fileName);
+
+            const messageData = {
+              _id: message._id,
+              senderId,
+              receiverId,
+              content: message.content,
+              messageType: "file",
+              fileName,
+              fileUrl, // Include the file URL
+              fileSize: fileBuffer.length,
+              senderInfo: {
+                fullName: message.senderId.fullName,
+                username: message.senderId.username,
+                profilepic: message.senderId.profilepic,
+              },
+              timestamp: message.timestamp,
+            };
+
+            // Send success callback to sender
+            if (callback) {
+              callback({ 
+                success: true, 
+                message: messageData,
+                tempId 
+              });
+            }
+
+            // Broadcast to other users in chat
+            socket.to(chatId).emit("newMessage", { 
+              message: messageData, 
+              chatId,
+              senderId,
+              receiverId,
+              timestamp: message.timestamp
+            });
+
+            // Send to receiver if they're online but not in chat room
+            const receiverSocketId = this.onlineUsers.get(receiverId);
+            if (receiverSocketId && receiverSocketId !== socket.id) {
+              this.io.to(receiverSocketId).emit("newMessage", { 
+                message: messageData, 
+                chatId,
+                senderId,
+                receiverId,
+                timestamp: message.timestamp
+              });
+            }
+
+            console.log(`File sent: ${fileName} (${fileBuffer.length} bytes) from ${senderId} to ${receiverId}`);
+          } catch (error) {
+            console.error("sendFile error:", error);
+            callback?.({ success: false, error: "Failed to send file" });
           }
         }
       );
@@ -240,13 +396,11 @@ class SocketService {
           );
 
           // Notify other users in the chat
-          socket
-            .to(chatId)
-            .emit("messageRead", {
-              chatId,
-              userId,
-              count: result.modifiedCount,
-            });
+          socket.to(chatId).emit("messageRead", {
+            chatId,
+            userId,
+            count: result.modifiedCount,
+          });
 
           console.log(
             `${result.modifiedCount} messages marked as read for user ${userId} in chat ${chatId}`

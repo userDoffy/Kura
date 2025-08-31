@@ -30,22 +30,6 @@ const Header = () => {
 
       {/* Right Section - Actions */}
       <div className="flex items-center gap-2">
-        {/* Notifications Button */}
-        <Link
-          to="/notifications"
-          className="relative btn btn-ghost btn-circle btn-xs hover:bg-base-200 hover:scale-110 transition-all duration-200 group"
-          title="Notifications"
-        >
-          <FiBell className="text-lg group-hover:text-primary transition-colors duration-200" />
-          
-          {/* Notification Badge - You can conditionally render this based on notification count */}
-          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full flex items-center justify-center">
-            <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse"></span>
-          </span>
-        </Link>
-
-        {/* Divider */}
-        <div className="w-px h-4 bg-base-200"></div>
 
         {/* Theme Selector */}
         <div className="hover:scale-105 transition-transform duration-200">

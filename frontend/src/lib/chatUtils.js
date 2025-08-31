@@ -7,12 +7,14 @@ export const generateSharedKey = (userId1, userId2) => {
 
 export const encryptMessage = (message, senderId, receiverId) => {
   const sharedKey = generateSharedKey(senderId, receiverId);
+  console.log("Shared Key generated:", sharedKey); // Debugging line
   return CryptoJS.AES.encrypt(message, sharedKey).toString();
 };
 
 export const decryptMessage = (encryptedMessage, userId1, userId2) => {
   try {
     const sharedKey = generateSharedKey(userId1, userId2);
+    console.log("Shared Key generated:", sharedKey);
     const bytes = CryptoJS.AES.decrypt(encryptedMessage, sharedKey);
     const decrypted = bytes.toString(CryptoJS.enc.Utf8);
     return decrypted || "[Failed to decrypt]";

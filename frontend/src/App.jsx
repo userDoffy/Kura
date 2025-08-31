@@ -10,7 +10,6 @@ import SignUpPage from "./pages/Auth/SignUpPage.jsx";
 import VerificationPage from "./pages/Auth/VerificationPage.jsx";
 
 import Homepage from "./pages/Chat/HomePage.jsx";
-import NotificationsPage from "./pages/Chat/NotificationsPage.jsx";
 
 import ProfilePage from "./pages/User/ProfilePage.jsx";
 import FriendsPage from "./pages/User/FriendsPage.jsx";
@@ -50,7 +49,6 @@ function App() {
               <Route path="/" element={<Homepage />} />
               <Route path="/chat" element={<Homepage />} />
               <Route path="/chat/:friendId" element={<Homepage />} />
-              <Route path="/notifications" element={<NotificationsPage />} />
         
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/friends" element={<FriendsPage />} />

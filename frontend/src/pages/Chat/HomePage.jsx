@@ -7,7 +7,7 @@ import { io } from "socket.io-client";
 import { getUserFriends } from "../../lib/api";
 import { useLocation } from "react-router";
 
-// Import our new components and utils
+// Chat utilities and components
 import { encryptMessage, decryptMessage } from "../../lib/chatUtils";
 import {
   UserListSidebar,
@@ -21,11 +21,10 @@ import {
 const HomePage = () => {
   const location = useLocation();
   const { userId: targetUserId } = location.state || {};
-
   const { theme } = useThemeStore();
   const { authUser } = useAuthUser();
 
-  // State management
+  // State
   const [selectedUser, setSelectedUser] = useState(null);
   const [newMessage, setNewMessage] = useState("");
   const [socket, setSocket] = useState(null);
@@ -35,74 +34,82 @@ const HomePage = () => {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
 
-  // Refs
   const messagesEndRef = useRef(null);
   const typingTimeouts = useRef({});
 
-  // Queries
+  // Fetch friends
   const { data: users = [], isLoading: usersLoading } = useQuery({
     queryKey: ["userFriends"],
     queryFn: getUserFriends,
   });
 
-  // Auto-select user when navigating from another page
+  // Auto-select target user
   useEffect(() => {
     if (targetUserId && users.length > 0 && !selectedUser) {
       const targetUser = users.find((user) => user._id === targetUserId);
       if (targetUser) {
         setSelectedUser(targetUser);
-        setShowSidebar(false); // Hide sidebar on mobile when chat is selected
+        setShowSidebar(false);
       }
     }
   }, [targetUserId, users, selectedUser]);
 
-  // Utility functions
-  const getCurrentChatId = () => {
-    if (!authUser || !selectedUser) return null;
-    return [authUser._id, selectedUser._id].sort().join("-");
+  const getCurrentChatId = () =>
+    authUser && selectedUser
+      ? [authUser._id, selectedUser._id].sort().join("-")
+      : null;
+
+  // Helper function to format file size
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Socket setup
+  // Socket connection
   useEffect(() => {
     if (!authUser) return;
 
     const newSocket = io(
       import.meta.env.VITE_SERVER_URL || "http://localhost:5000",
-      {
-        transports: ["websocket", "polling"],
-        withCredentials: true,
-      }
+      { transports: ["websocket", "polling"], withCredentials: true }
     );
 
     newSocket.on("connect", () => console.log("Socket connected"));
     newSocket.on("disconnect", () => console.log("Socket disconnected"));
 
+    // Handle connection errors
+    newSocket.on("connect_error", (error) => {
+      console.error("Socket connection error:", error);
+    });
+
     // Online users
     newSocket.on("onlineUsers", (ids) => setOnlineUsers(new Set(ids)));
 
     // New messages
-    newSocket.on("newMessage", (data) => {
-      const { message, chatId } = data;
+    newSocket.on("newMessage", ({ message, chatId }) => {
       if (!selectedUser || chatId !== getCurrentChatId()) return;
       if (message.senderId === authUser._id) return;
 
-      const otherUserId = message.senderId;
-      const decryptedContent = decryptMessage(
-        message.content,
-        authUser._id,
-        otherUserId
-      );
+      let processedMessage = { ...message };
+
+      // Handle different message types
+      if (message.messageType === "text") {
+        processedMessage.content = decryptMessage(
+          message.content, 
+          authUser._id, 
+          message.senderId
+        );
+      }
+      // For file messages, content and fileUrl are already processed by server
+
+      processedMessage.timestamp = new Date(message.timestamp);
 
       setMessages((prev) => {
         if (prev.some((msg) => msg._id === message._id)) return prev;
-        return [
-          ...prev,
-          {
-            ...message,
-            content: decryptedContent,
-            timestamp: new Date(message.timestamp),
-          },
-        ];
+        return [...prev, processedMessage];
       });
     });
 
@@ -114,11 +121,9 @@ const HomePage = () => {
         userId === authUser._id
       )
         return;
-
       setTypingUsers((prev) => {
         const newSet = new Set(prev);
-        if (isTyping) newSet.add(userId);
-        else newSet.delete(userId);
+        isTyping ? newSet.add(userId) : newSet.delete(userId);
         return newSet;
       });
     });
@@ -130,7 +135,7 @@ const HomePage = () => {
     };
   }, [authUser, selectedUser]);
 
-  // Join chat & load messages
+  // Join chat and load messages
   useEffect(() => {
     if (!socket || !selectedUser) {
       setMessages([]);
@@ -141,20 +146,32 @@ const HomePage = () => {
     setMessagesLoading(true);
 
     socket.emit("joinChat", { chatId, userId: authUser._id });
-
     socket.emit("loadMessages", { chatId }, (res) => {
       if (res.success) {
         setMessages(
-          res.messages.map((msg) => ({
-            ...msg,
-            content: decryptMessage(
-              msg.content,
-              authUser._id,
-              selectedUser._id
-            ),
-            timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
-          }))
+          res.messages.map((msg) => {
+            if (msg.messageType === "file") {
+              // File messages already have fileUrl from server
+              return {
+                ...msg,
+                timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+              };
+            } else {
+              // Decrypt text content
+              return {
+                ...msg,
+                content: decryptMessage(
+                  msg.content,
+                  authUser._id,
+                  selectedUser._id
+                ),
+                timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+              };
+            }
+          })
         );
+      } else {
+        console.error("Failed to load messages:", res.error);
       }
       setMessagesLoading(false);
     });
@@ -162,16 +179,14 @@ const HomePage = () => {
     socket.emit("markAsRead", { chatId, userId: authUser._id });
   }, [socket, selectedUser]);
 
-  // Auto scroll messages
+  // Auto-scroll
   useEffect(() => {
     if (messages.length > 0) {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
 
-  // Event handlers
+  // Send text message
   const handleSendMessage = () => {
     if (!newMessage.trim() || !selectedUser || !socket) return;
 
@@ -181,8 +196,8 @@ const HomePage = () => {
       authUser._id,
       selectedUser._id
     );
-
     const tempId = `temp_${Date.now()}_${Math.random()}`;
+
     const optimisticMessage = {
       _id: tempId,
       content: newMessage.trim(),
@@ -190,8 +205,8 @@ const HomePage = () => {
       receiverId: selectedUser._id,
       timestamp: new Date(),
       isOptimistic: true,
+      messageType: "text",
     };
-
     setMessages((prev) => [...prev, optimisticMessage]);
 
     socket.emit(
@@ -217,6 +232,7 @@ const HomePage = () => {
             )
           );
         } else {
+          console.error("Failed to send message:", response?.error);
           setMessages((prev) => prev.filter((msg) => msg._id !== tempId));
         }
       }
@@ -226,6 +242,7 @@ const HomePage = () => {
     socket.emit("typing", { chatId, userId: authUser._id, isTyping: false });
   };
 
+  // Typing
   const handleTyping = (value) => {
     setNewMessage(value);
     if (!socket || !selectedUser) return;
@@ -248,12 +265,93 @@ const HomePage = () => {
 
   const handleUserSelect = (user) => {
     setSelectedUser(user);
-    setShowSidebar(false); // Hide sidebar on mobile when user is selected
+    setShowSidebar(false);
   };
 
   const handleBackToSidebar = () => {
     setShowSidebar(true);
     setSelectedUser(null);
+  };
+
+  // Send file with validation
+  const handleSendFile = (file) => {
+    if (!socket || !selectedUser) return;
+
+    // Client-side file validation
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      alert(`File size must be less than ${formatFileSize(maxSize)}`);
+      return;
+    }
+
+    const chatId = getCurrentChatId();
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      const arrayBuffer = event.target.result;
+      const tempId = `temp_file_${Date.now()}_${Math.random()}`;
+
+      // Create optimistic message with Blob URL for immediate preview
+      const optimisticMessage = {
+        _id: tempId,
+        content: `[File: ${file.name}]`,
+        fileName: file.name,
+        fileUrl: URL.createObjectURL(file), // Use original file for optimistic display
+        fileSize: file.size,
+        senderId: authUser._id,
+        receiverId: selectedUser._id,
+        timestamp: new Date(),
+        isOptimistic: true,
+        messageType: "file",
+      };
+
+      setMessages((prev) => [...prev, optimisticMessage]);
+
+      socket.emit(
+        "sendFile",
+        {
+          chatId,
+          content: `[File: ${file.name}]`,
+          fileName: file.name,
+          fileData: arrayBuffer,
+          receiverId: selectedUser._id,
+          tempId,
+        },
+        (response) => {
+          if (response?.success) {
+            // Revoke the old blob URL to prevent memory leaks
+            URL.revokeObjectURL(optimisticMessage.fileUrl);
+            
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg._id === tempId
+                  ? {
+                      ...response.message,
+                      timestamp: new Date(response.message.timestamp),
+                      isOptimistic: false,
+                    }
+                  : msg
+              )
+            );
+          } else {
+            console.error("Failed to send file:", response?.error);
+            // Revoke blob URL on error too
+            URL.revokeObjectURL(optimisticMessage.fileUrl);
+            setMessages((prev) => prev.filter((msg) => msg._id !== tempId));
+            
+            // Show error message to user
+            alert(response?.error || "Failed to send file. Please try again.");
+          }
+        }
+      );
+    };
+
+    reader.onerror = (error) => {
+      console.error("Error reading file:", error);
+      alert("Error reading file. Please try again.");
+    };
+
+    reader.readAsArrayBuffer(file);
   };
 
   if (!authUser) {
@@ -265,12 +363,11 @@ const HomePage = () => {
   }
 
   return (
-    // In HomePage.jsx, change the main container:
     <div
       className="flex h-screen bg-gradient-to-br from-base-200 via-base-200 to-base-300/50 overflow-hidden"
       data-theme={theme}
     >
-      {/* Sidebar - Hidden on mobile when chat is selected */}
+      {/* Sidebar */}
       <div
         className={`${showSidebar ? "flex" : "hidden lg:flex"} flex-shrink-0`}
       >
@@ -284,50 +381,28 @@ const HomePage = () => {
         />
       </div>
 
-      {/* Chat Area */}
+      {/* Chat area */}
       <div
         className={`flex-1 flex flex-col ${
           !showSidebar || selectedUser ? "flex" : "hidden lg:flex"
-        } min-h-0`} // ✅ important for flex scroll
+        } min-h-0`}
       >
         {selectedUser ? (
           <>
-            {/* Chat Header */}
-            <div className="flex-shrink-0">
-              <ChatHeader
-                selectedUser={selectedUser}
-                onlineUsers={onlineUsers}
-                typingUsers={typingUsers}
-                onBack={handleBackToSidebar}
-              />
-            </div>
+            <ChatHeader
+              selectedUser={selectedUser}
+              onlineUsers={onlineUsers}
+              typingUsers={typingUsers}
+              onBack={handleBackToSidebar}
+            />
 
-            {/* Messages Area */}
             <div className="flex-1 overflow-y-auto px-2 py-1 bg-gradient-to-b from-base-100/50 to-base-100/30 backdrop-blur-sm">
               {messagesLoading ? (
                 <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <span className="loading loading-spinner loading-md text-primary"></span>
-                    <p className="text-xs text-base-content/70 mt-2">
-                      Loading messages...
-                    </p>
-                  </div>
+                  <span className="loading loading-spinner loading-md text-primary"></span>
                 </div>
               ) : messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center max-w-sm mx-auto p-6">
-                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <span className="text-xl">👋</span>
-                    </div>
-                    <p className="text-sm text-base-content/70 mb-2">
-                      No messages yet with{" "}
-                      {selectedUser.fullName || selectedUser.username}
-                    </p>
-                    <p className="text-xs text-base-content/50">
-                      Send a message to start the conversation!
-                    </p>
-                  </div>
-                </div>
+                <WelcomeScreen />
               ) : (
                 <div className="space-y-1 flex flex-col justify-end min-h-full">
                   {messages.map((msg) => (
@@ -338,23 +413,20 @@ const HomePage = () => {
                       authUser={authUser}
                     />
                   ))}
-
-                  {/* Typing indicator */}
                   {typingUsers.has(selectedUser._id) && (
                     <TypingIndicator user={selectedUser} />
                   )}
-
                   <div ref={messagesEndRef} />
                 </div>
               )}
             </div>
 
-            {/* Message Input */}
             <div className="flex-shrink-0 border-t border-base-300 bg-base-100">
               <MessageInput
                 newMessage={newMessage}
                 onMessageChange={handleTyping}
                 onSendMessage={handleSendMessage}
+                onSendFile={handleSendFile}
                 onKeyPress={handleKeyPress}
                 disabled={messagesLoading}
               />
@@ -368,4 +440,4 @@ const HomePage = () => {
   );
 };
 
-export default HomePage; // src/pages/HomePage.jsx
+export default HomePage;
