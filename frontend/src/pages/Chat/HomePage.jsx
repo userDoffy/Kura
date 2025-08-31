@@ -113,6 +113,19 @@ const HomePage = () => {
       });
     });
 
+    // Handle message deletion
+    newSocket.on("messageDeleted", ({ messageId, chatId }) => {
+      if (!selectedUser || chatId !== getCurrentChatId()) return;
+      
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === messageId
+            ? { ...msg, deleted: true, content: "This message was deleted" }
+            : msg
+        )
+      );
+    });
+
     // Typing indicator
     newSocket.on("userTyping", ({ userId, chatId, isTyping }) => {
       if (
@@ -185,6 +198,36 @@ const HomePage = () => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  // Delete message handler
+  const handleDeleteMessage = (messageId) => {
+    return new Promise((resolve, reject) => {
+      if (!socket || !selectedUser) {
+        reject(new Error("Socket or selected user not available"));
+        return;
+      }
+
+      const chatId = getCurrentChatId();
+      
+      socket.emit("deleteMessage", { messageId, chatId }, (response) => {
+        if (response?.success) {
+          // Update local state to mark message as deleted
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg._id === messageId
+                ? { ...msg, deleted: true, content: "This message was deleted" }
+                : msg
+            )
+          );
+          resolve();
+        } else {
+          console.error("Failed to delete message:", response?.error);
+          alert(response?.error || "Failed to delete message");
+          reject(new Error(response?.error || "Failed to delete message"));
+        }
+      });
+    });
+  };
 
   // Send text message
   const handleSendMessage = () => {
@@ -411,6 +454,7 @@ const HomePage = () => {
                       message={msg}
                       isOwn={msg.senderId === authUser._id}
                       authUser={authUser}
+                      onDeleteMessage={handleDeleteMessage}
                     />
                   ))}
                   {typingUsers.has(selectedUser._id) && (

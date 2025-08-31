@@ -67,22 +67,22 @@ const FriendCard = ({ user, onAdd, onAccept, onDecline, onRemove, pending }) => 
           </div>
         )}
 
-        {/* Accept/Decline Buttons */}
+        {/* Accept/Decline Buttons - Fixed layout */}
         {onAccept && (
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
               onClick={onAccept}
-              className="btn btn-sm btn-success flex-1 gap-2 hover:scale-105 transition-transform duration-200"
+              className="btn btn-sm btn-success gap-1 hover:scale-105 transition-transform duration-200 min-h-8 h-8 px-2 text-xs"
             >
-              <Check className="w-4 h-4" />
+              <Check className="w-3 h-3" />
               Accept
             </button>
             {onDecline && (
               <button
                 onClick={onDecline}
-                className="btn btn-sm btn-error btn-outline flex-1 gap-2 hover:scale-105 transition-transform duration-200"
+                className="btn btn-sm btn-error btn-outline gap-1 hover:scale-105 transition-transform duration-200 min-h-8 h-8 px-2 text-xs"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3 h-3" />
                 Decline
               </button>
             )}

@@ -123,7 +123,7 @@ class SocketService {
             return callback({ success: false, error: "Unauthorized" });
           }
 
-          const messages = await Message.find({ chatId })
+          const messages = await Message.find({ chatId, deleted: { $ne: true } })
             .sort({ timestamp: 1 })
             .limit(100)
             .populate("senderId", "fullName username profilepic");
@@ -144,6 +144,7 @@ class SocketService {
                 timestamp: msg.timestamp,
                 read: msg.read,
                 messageType: msg.messageType || "text",
+                deleted: msg.deleted || false,
               };
 
               // Add file-specific data if it's a file message
@@ -248,6 +249,59 @@ class SocketService {
           }
         }
       );
+
+      // Handle deleting messages
+      socket.on("deleteMessage", async ({ messageId, chatId }, callback) => {
+        try {
+          // Find the message
+          const message = await Message.findById(messageId);
+          
+          if (!message) {
+            return callback?.({ success: false, error: "Message not found" });
+          }
+
+          // Verify that the user is the sender of the message
+          if (message.senderId.toString() !== socket.userId) {
+            return callback?.({ success: false, error: "You can only delete your own messages" });
+          }
+
+          // Verify the chat ID matches
+          if (message.chatId !== chatId) {
+            return callback?.({ success: false, error: "Chat ID mismatch" });
+          }
+
+          // Mark message as deleted instead of permanently deleting
+          message.deleted = true;
+          message.deletedAt = new Date();
+          await message.save();
+
+          const deleteData = {
+            messageId,
+            chatId,
+            senderId: socket.userId,
+            deletedAt: message.deletedAt,
+          };
+
+          // Send success callback to sender
+          if (callback) {
+            callback({ success: true, messageId });
+          }
+
+          // Broadcast deletion to all users in the chat room
+          this.io.to(chatId).emit("messageDeleted", deleteData);
+
+          // Also send to receiver if they're online
+          const receiverSocketId = this.onlineUsers.get(message.receiverId.toString());
+          if (receiverSocketId) {
+            this.io.to(receiverSocketId).emit("messageDeleted", deleteData);
+          }
+
+          console.log(`Message ${messageId} deleted by user ${socket.userId} in chat ${chatId}`);
+        } catch (error) {
+          console.error("Error deleting message:", error);
+          callback?.({ success: false, error: "Failed to delete message" });
+        }
+      });
 
       // Handle sending files
       socket.on(
@@ -388,6 +442,7 @@ class SocketService {
               chatId,
               senderId: { $ne: userId },
               read: false,
+              deleted: { $ne: true }, // Don't mark deleted messages as read
             },
             {
               read: true,
@@ -423,6 +478,7 @@ class SocketService {
                   { senderId: socket.userId },
                   { receiverId: socket.userId },
                 ],
+                deleted: { $ne: true }, // Exclude deleted messages
               },
             },
             {
