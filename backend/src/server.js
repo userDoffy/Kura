@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
+import adminRoutes from "./routes/admin.routes.js";
 import chatRoutes from "./routes/chat.route.js";
 import SocketService from "./lib/socketService.js";
 import bodyParser from "body-parser";
@@ -30,6 +31,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/admin", adminRoutes);
 
 // ✅ Create HTTP server
 const server = http.createServer(app);

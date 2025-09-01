@@ -85,3 +85,24 @@ export const removeFriend = async (id) => {
   const response = await axiosInstance.delete(`/user/friends/${id}`);
   return response.data;
 };
+
+// admin apis
+export const adminLogin = async (formData) => {
+  const response = await axiosInstance.post("/admin/login", formData);
+  return response.data;
+};
+
+export const adminLogout = async () => {
+  const response = await axiosInstance.post("/admin/logout");
+  return response.data;
+};
+
+export const getUsers = async () => {
+  const response = await axiosInstance.get("/admin/getUsers");
+  return response.data;
+};
+
+export const getMessages = async () => {
+  const response = await axiosInstance.get("/admin/getMessages");
+  return response.data;
+};
