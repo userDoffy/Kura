@@ -28,6 +28,10 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Routes
+app.use("/api/hello", (req, res) => {
+  res.send("Hello from backend!");
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
