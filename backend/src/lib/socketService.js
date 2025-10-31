@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import cookie from "cookie";
 import Message from "../models/Message.js";
 import User from "../models/User.js";
+import "dotenv/config";
 
 class SocketService {
   constructor(server) {
