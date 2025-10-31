@@ -61,11 +61,11 @@ const HomePage = () => {
 
   // Helper function to format file size
   const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   // Socket connection
@@ -98,8 +98,8 @@ const HomePage = () => {
       // Handle different message types
       if (message.messageType === "text") {
         processedMessage.content = decryptMessage(
-          message.content, 
-          authUser._id, 
+          message.content,
+          authUser._id,
           message.senderId
         );
       }
@@ -116,7 +116,7 @@ const HomePage = () => {
     // Handle message deletion
     newSocket.on("messageDeleted", ({ messageId, chatId }) => {
       if (!selectedUser || chatId !== getCurrentChatId()) return;
-      
+
       setMessages((prev) =>
         prev.map((msg) =>
           msg._id === messageId
@@ -208,7 +208,7 @@ const HomePage = () => {
       }
 
       const chatId = getCurrentChatId();
-      
+
       socket.emit("deleteMessage", { messageId, chatId }, (response) => {
         if (response?.success) {
           // Update local state to mark message as deleted
@@ -364,7 +364,7 @@ const HomePage = () => {
           if (response?.success) {
             // Revoke the old blob URL to prevent memory leaks
             URL.revokeObjectURL(optimisticMessage.fileUrl);
-            
+
             setMessages((prev) =>
               prev.map((msg) =>
                 msg._id === tempId
@@ -381,7 +381,7 @@ const HomePage = () => {
             // Revoke blob URL on error too
             URL.revokeObjectURL(optimisticMessage.fileUrl);
             setMessages((prev) => prev.filter((msg) => msg._id !== tempId));
-            
+
             // Show error message to user
             alert(response?.error || "Failed to send file. Please try again.");
           }
@@ -405,14 +405,24 @@ const HomePage = () => {
     );
   }
 
+  const messagesContainerRef = useRef(null);
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop =
+        messagesContainerRef.current.scrollHeight;
+    }
+  }, [messages, selectedUser]);
+
   return (
     <div
-      className="flex h-screen bg-gradient-to-br from-base-200 via-base-200 to-base-300/50 overflow-hidden"
+      className="flex h-screen bg-gradient-to-br from-base-200 via-base-200 to-base-300/50 "
       data-theme={theme}
     >
-      {/* Sidebar */}
+      {/* Sidebar - Fixed width on desktop, full screen on mobile */}
       <div
-        className={`${showSidebar ? "flex" : "hidden lg:flex"} flex-shrink-0`}
+        className={`${
+          showSidebar ? "flex" : "hidden lg:flex"
+        } flex-shrink-0 w-full lg:w-80 h-full`}
       >
         <UserListSidebar
           users={users}
@@ -424,22 +434,29 @@ const HomePage = () => {
         />
       </div>
 
-      {/* Chat area */}
+      {/* Chat area - Properly constrained */}
       <div
         className={`flex-1 flex flex-col ${
           !showSidebar || selectedUser ? "flex" : "hidden lg:flex"
-        } min-h-0`}
+        } h-full`}
       >
         {selectedUser ? (
           <>
-            <ChatHeader
-              selectedUser={selectedUser}
-              onlineUsers={onlineUsers}
-              typingUsers={typingUsers}
-              onBack={handleBackToSidebar}
-            />
+            {/* Chat Header - Fixed at top */}
+            <div className="flex-shrink-0">
+              <ChatHeader
+                selectedUser={selectedUser}
+                onlineUsers={onlineUsers}
+                typingUsers={typingUsers}
+                onBack={handleBackToSidebar}
+              />
+            </div>
 
-            <div className="flex-1 overflow-y-auto px-2 py-1 bg-gradient-to-b from-base-100/50 to-base-100/30 backdrop-blur-sm">
+            {/* Messages Area - Scrollable middle section */}
+            <div
+              ref={messagesContainerRef}
+              className="flex-1 overflow-y-auto px-4 py-4 bg-gradient-to-b from-base-100/50 to-base-100/30 backdrop-blur-sm smooth-scroll"
+            >
               {messagesLoading ? (
                 <div className="flex items-center justify-center h-full">
                   <span className="loading loading-spinner loading-md text-primary"></span>
@@ -447,7 +464,7 @@ const HomePage = () => {
               ) : messages.length === 0 ? (
                 <WelcomeScreen />
               ) : (
-                <div className="space-y-1 flex flex-col justify-end min-h-full">
+                <div className="space-y-2 flex flex-col justify-end min-h-full pb-2">
                   {messages.map((msg) => (
                     <MessageBubble
                       key={msg._id}
@@ -465,7 +482,8 @@ const HomePage = () => {
               )}
             </div>
 
-            <div className="flex-shrink-0 border-t border-base-300 bg-base-100">
+            {/* Message Input*/}
+            <div className="border-t border-base-300 bg-base-100/95 backdrop-blur-sm">
               <MessageInput
                 newMessage={newMessage}
                 onMessageChange={handleTyping}
@@ -477,7 +495,9 @@ const HomePage = () => {
             </div>
           </>
         ) : (
-          <WelcomeScreen />
+          <div className="flex-1 flex items-center justify-center">
+            <WelcomeScreen />
+          </div>
         )}
       </div>
     </div>

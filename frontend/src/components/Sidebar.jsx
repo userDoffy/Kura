@@ -1,165 +1,84 @@
 import { Link, useLocation } from "react-router";
-import { useState } from "react";
-import {
-  FiChevronRight,
-  FiChevronLeft,
-  FiLogOut,
-  FiUser,
-  FiMessageCircle,
-  FiUsers,
-} from "react-icons/fi";
+import { FiLogOut, FiMessageCircle, FiUsers } from "react-icons/fi";
 import useAuthUser from "../hooks/useAuthUser";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { logout } from "../lib/api.js";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { logout } from "../lib/api";
 import { toast } from "react-hot-toast";
+import ThemeSelector from "./ThemeSelector";
 
 const Sidebar = () => {
   const { authUser } = useAuthUser();
   const location = useLocation();
-  const [isCollapsed, setIsCollapsed] = useState(true);
   const queryClient = useQueryClient();
-  
+
   const { mutate: logoutMutation } = useMutation({
     mutationFn: logout,
     onSuccess: () => {
-      toast.success("Logged out successfully!");
+      toast.success("Logged out");
       queryClient.setQueryData(["authUser"], null);
     },
   });
-  
-  const handleLogout = () => {
-    logoutMutation();
-  };
-  
-  const sidebarWidth = isCollapsed ? "w-12" : "w-40";
-  const isActive = (path) => location.pathname === path;
-  
-  return (
-    <aside
-      className={`bg-base-300 text-base-content ${sidebarWidth} flex flex-col justify-between h-screen shadow-xl relative py-3 transition-all duration-150 ease-out border-r border-base-200`}
-    >
-      {/* Toggle Button */}
-      <button
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute top-3 right-2 text-base-content/70 hover:text-primary hover:bg-base-200 rounded-full p-1 transition-colors duration-150"
-        title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-      >
-        {isCollapsed ? (
-          <FiChevronRight size={14} />
-        ) : (
-          <FiChevronLeft size={14} />
-        )}
-      </button>
 
-      {/* Navigation Links */}
-      <nav className="flex flex-col items-center mt-8 space-y-1 px-1">
+  const isActive = (path) => location.pathname === path;
+
+  return (
+    <aside className="w-12 sm:w-14 bg-base-200 text-base-content h-screen flex flex-col justify-between items-center border-r border-base-300 py-3 fixed left-0 top-0 z-50">
+
+      {/* ========== TOP (Logo) ========== */}
+      <div className="flex flex-col items-center gap-1">
+        <Link to="/" className="flex flex-col items-center text-center">
+          <div className="w-6 h-6 sm:w-7 sm:h-7 bg-primary rounded flex items-center justify-center text-white font-bold">
+            K
+          </div>
+          <span className="text-[10px] font-semibold text-primary hidden sm:block">
+            Kura
+          </span>
+        </Link>
+      </div>
+
+      {/* ========== BOTTOM ICONS ========== */}
+      <div className="flex flex-col gap-3 items-center mb-1">
+
+        {/* Chats */}
         <Link
           to="/"
-          className={`relative flex items-center ${
-            isCollapsed ? "justify-center w-10 h-10" : "justify-start w-full px-3 py-2"
-          } gap-2 rounded-lg hover:bg-base-200 transition-colors duration-150 group ${
-            isActive("/") 
-              ? "bg-primary/10 text-primary border border-primary/20" 
-              : ""
+          className={`p-2 sm:p-2.5 rounded-lg flex items-center justify-center hover:bg-primary/10 transition ${
+            isActive("/") && "bg-primary text-white shadow-md"
           }`}
         >
-          {isActive("/") && !isCollapsed && (
-            <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-primary rounded-r-full"></span>
-          )}
-          <FiMessageCircle 
-            className={`${isActive("/") ? "text-primary" : ""} ${
-              isCollapsed ? "text-lg" : "text-base"
-            }`} 
-          />
-          {!isCollapsed && (
-            <span className={`text-xs font-medium truncate ${
-              isActive("/") ? "text-primary" : ""
-            }`}>
-              Messages
-            </span>
-          )}
-          {isCollapsed && isActive("/") && (
-            <span className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-primary rounded-l-full"></span>
-          )}
+          <FiMessageCircle size={18} className="sm:w-5 sm:h-5" />
         </Link>
 
+        {/* Friends */}
         <Link
           to="/friends"
-          className={`relative flex items-center ${
-            isCollapsed ? "justify-center w-10 h-10" : "justify-start w-full px-3 py-2"
-          } gap-2 rounded-lg hover:bg-base-200 transition-colors duration-150 group ${
-            isActive("/friends") 
-              ? "bg-primary/10 text-primary border border-primary/20" 
-              : ""
+          className={`p-2 sm:p-2.5 rounded-lg flex items-center justify-center hover:bg-primary/10 transition ${
+            isActive("/friends") && "bg-primary text-white shadow-md"
           }`}
         >
-          {isActive("/friends") && !isCollapsed && (
-            <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-primary rounded-r-full"></span>
-          )}
-          <FiUsers 
-            className={`${isActive("/friends") ? "text-primary" : ""} ${
-              isCollapsed ? "text-lg" : "text-base"
-            }`} 
-          />
-          {!isCollapsed && (
-            <span className={`text-xs font-medium truncate ${
-              isActive("/friends") ? "text-primary" : ""
-            }`}>
-              Friends
-            </span>
-          )}
-          {isCollapsed && isActive("/friends") && (
-            <span className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-primary rounded-l-full"></span>
-          )}
+          <FiUsers size={18} className="sm:w-5 sm:h-5" />
         </Link>
-      </nav>
 
-      {/* User Profile & Logout Section */}
-      <div className="flex flex-col items-center space-y-2 px-1 pt-3 border-t border-base-200">
-        {/* Profile Picture */}
-        <Link
-          to="/profile"
-          className={`relative rounded-full overflow-hidden group transition-colors duration-150 ${
-            isCollapsed ? "" : "mb-1"
-          }`}
-        >
+        {/* Profile */}
+        <Link to="/profile">
           <img
-            src={authUser?.profilepic || "https://via.placeholder.com/32"}
+            src={authUser?.profilepic || "https://via.placeholder.com/40"}
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 border-base-300 object-cover hover:border-primary transition"
             alt="Profile"
-            className={`${isCollapsed ? "w-8 h-8" : "w-9 h-9"} rounded-full object-cover border border-base-100 shadow-sm`}
           />
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-            <FiUser className="text-white text-xs" />
-          </div>
         </Link>
 
-        {/* Username */}
-        {!isCollapsed && (
-          <div className="text-center px-1">
-            <p className="text-xs font-medium truncate text-base-content">
-              {authUser?.username}
-            </p>
-            <p className="text-[10px] text-base-content/60 truncate">
-              Online
-            </p>
-          </div>
-        )}
+        {/* Theme Selector */}
+        <ThemeSelector />
 
-        {/* Logout Button */}
+        {/* Logout */}
         <button
-          onClick={handleLogout}
-          className={`flex items-center ${
-            isCollapsed ? "justify-center w-10 h-8" : "justify-start w-full px-3 py-2"
-          } gap-2 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors duration-150 text-base-content/70 group ${
-            isCollapsed ? "" : "border border-transparent hover:border-red-200"
-          }`}
-          title="Logout"
+          onClick={() => logoutMutation()}
+          className="p-1.5 sm:p-2 rounded-lg hover:bg-red-100 text-red-600 transition"
         >
-          <FiLogOut className="text-sm" />
-          {!isCollapsed && (
-            <span className="text-xs font-medium">Logout</span>
-          )}
+          <FiLogOut size={16} className="sm:w-4 sm:h-4" />
         </button>
+
       </div>
     </aside>
   );
