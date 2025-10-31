@@ -99,6 +99,7 @@ export const login = async (req, res) => {
 };
 
 export const logout = (req, res) => {
+  console.log("Logging out");
   res.clearCookie("jwt");
   res.status(200).json({ success: true, message: "Logout successful" });
 };
