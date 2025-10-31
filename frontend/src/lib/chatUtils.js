@@ -102,7 +102,7 @@ export const decryptMessage = (encryptedMessage, userId1, userId2) => {
   }
 };
 
-/* ---------- (Optional) small utilities you already had ---------- */
+/*small utilities*/
 export const formatTime = (timestamp) =>
   new Date(timestamp).toLocaleTimeString("en-US", {
     hour: "2-digit",
