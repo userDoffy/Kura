@@ -100,7 +100,12 @@ export const login = async (req, res) => {
 
 export const logout = (req, res) => {
   console.log("Logging out");
-  res.clearCookie("jwt");
+  res.clearCookie("jwt", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "none",
+  });
+
   res.status(200).json({ success: true, message: "Logout successful" });
 };
 
