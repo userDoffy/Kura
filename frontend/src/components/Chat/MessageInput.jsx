@@ -153,7 +153,7 @@ const MessageInput = ({
         {/* Message input */}
         <textarea
           placeholder="Type a message..."
-          className="textarea textarea-sm flex-1 bg-base-200 border-none resize-none text-sm leading-tight max-h-20 overflow-y-auto p-2 rounded-md"
+          className="textarea textarea-sm flex-1 bg-base-200 border-none resize-none text-sm leading-tight max-h-36 overflow-y-auto p-2 rounded-md sm:max-h-48"
           value={newMessage}
           onChange={(e) => onMessageChange(e.target.value)}
           onKeyDown={(e) => {

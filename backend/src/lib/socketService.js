@@ -14,7 +14,7 @@ class SocketService {
       },
       transports: ["websocket", "polling"],
       // Add max file size limit (10MB)
-      maxHttpBufferSize: 10 * 1024 * 1024
+      maxHttpBufferSize: 10 * 1024 * 1024,
     });
 
     this.onlineUsers = new Map(); // userId -> socketId
@@ -24,11 +24,16 @@ class SocketService {
     // File size limits
     this.MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
     this.ALLOWED_FILE_TYPES = [
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-      'application/pdf', 'text/plain', 'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "application/pdf",
+      "text/plain",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ];
 
     this.setupMiddleware();
@@ -66,25 +71,25 @@ class SocketService {
   // Helper method to convert file buffer to base64 data URL
   getFileUrl(fileData, fileName) {
     if (!fileData || !fileName) return null;
-    
+
     // Get MIME type from file extension
-    const ext = fileName.split('.').pop().toLowerCase();
+    const ext = fileName.split(".").pop().toLowerCase();
     const mimeTypes = {
-      'jpg': 'image/jpeg',
-      'jpeg': 'image/jpeg',
-      'png': 'image/png',
-      'gif': 'image/gif',
-      'webp': 'image/webp',
-      'pdf': 'application/pdf',
-      'txt': 'text/plain',
-      'doc': 'application/msword',
-      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'xls': 'application/vnd.ms-excel',
-      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      gif: "image/gif",
+      webp: "image/webp",
+      pdf: "application/pdf",
+      txt: "text/plain",
+      doc: "application/msword",
+      docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      xls: "application/vnd.ms-excel",
+      xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     };
-    
-    const mimeType = mimeTypes[ext] || 'application/octet-stream';
-    const base64 = fileData.toString('base64');
+
+    const mimeType = mimeTypes[ext] || "application/octet-stream";
+    const base64 = fileData.toString("base64");
     return `data:${mimeType};base64,${base64}`;
   }
 
@@ -124,7 +129,10 @@ class SocketService {
             return callback({ success: false, error: "Unauthorized" });
           }
 
-          const messages = await Message.find({ chatId, deleted: { $ne: true } })
+          const messages = await Message.find({
+            chatId,
+            deleted: { $ne: true },
+          })
             .sort({ timestamp: 1 })
             .limit(100)
             .populate("senderId", "fullName username profilepic");
@@ -151,7 +159,10 @@ class SocketService {
               // Add file-specific data if it's a file message
               if (msg.messageType === "file") {
                 baseMessage.fileName = msg.fileName;
-                baseMessage.fileUrl = this.getFileUrl(msg.fileData, msg.fileName);
+                baseMessage.fileUrl = this.getFileUrl(
+                  msg.fileData,
+                  msg.fileName
+                );
                 baseMessage.fileSize = msg.fileData ? msg.fileData.length : 0;
               }
 
@@ -236,7 +247,12 @@ class SocketService {
             // Also send to receiver if they're not in the chat room (for notifications)
             const receiverSocketId = this.onlineUsers.get(receiverId);
             if (receiverSocketId && receiverSocketId !== socket.id) {
-              this.io.to(receiverSocketId).emit("newMessage", messageData);
+              this.io.to(receiverSocketId).emit("new_message", {
+                senderId,
+                chatId,
+                timestamp: message.timestamp,
+                content: message.content,
+              });
             }
 
             console.log(
@@ -256,14 +272,17 @@ class SocketService {
         try {
           // Find the message
           const message = await Message.findById(messageId);
-          
+
           if (!message) {
             return callback?.({ success: false, error: "Message not found" });
           }
 
           // Verify that the user is the sender of the message
           if (message.senderId.toString() !== socket.userId) {
-            return callback?.({ success: false, error: "You can only delete your own messages" });
+            return callback?.({
+              success: false,
+              error: "You can only delete your own messages",
+            });
           }
 
           // Verify the chat ID matches
@@ -292,12 +311,16 @@ class SocketService {
           this.io.to(chatId).emit("messageDeleted", deleteData);
 
           // Also send to receiver if they're online
-          const receiverSocketId = this.onlineUsers.get(message.receiverId.toString());
+          const receiverSocketId = this.onlineUsers.get(
+            message.receiverId.toString()
+          );
           if (receiverSocketId) {
             this.io.to(receiverSocketId).emit("messageDeleted", deleteData);
           }
 
-          console.log(`Message ${messageId} deleted by user ${socket.userId} in chat ${chatId}`);
+          console.log(
+            `Message ${messageId} deleted by user ${socket.userId} in chat ${chatId}`
+          );
         } catch (error) {
           console.error("Error deleting message:", error);
           callback?.({ success: false, error: "Failed to delete message" });
@@ -307,7 +330,10 @@ class SocketService {
       // Handle sending files
       socket.on(
         "sendFile",
-        async ({ chatId, content, fileName, fileData, receiverId, tempId }, callback) => {
+        async (
+          { chatId, content, fileName, fileData, receiverId, tempId },
+          callback
+        ) => {
           try {
             const senderId = socket.userId;
 
@@ -318,9 +344,11 @@ class SocketService {
             // Validate file size
             const fileBuffer = Buffer.from(fileData);
             if (fileBuffer.length > this.MAX_FILE_SIZE) {
-              return callback?.({ 
-                success: false, 
-                error: `File size exceeds limit of ${this.MAX_FILE_SIZE / (1024 * 1024)}MB` 
+              return callback?.({
+                success: false,
+                error: `File size exceeds limit of ${
+                  this.MAX_FILE_SIZE / (1024 * 1024)
+                }MB`,
               });
             }
 
@@ -376,35 +404,36 @@ class SocketService {
 
             // Send success callback to sender
             if (callback) {
-              callback({ 
-                success: true, 
+              callback({
+                success: true,
                 message: messageData,
-                tempId 
+                tempId,
               });
             }
 
             // Broadcast to other users in chat
-            socket.to(chatId).emit("newMessage", { 
-              message: messageData, 
+            socket.to(chatId).emit("newMessage", {
+              message: messageData,
               chatId,
               senderId,
               receiverId,
-              timestamp: message.timestamp
+              timestamp: message.timestamp,
             });
 
             // Send to receiver if they're online but not in chat room
             const receiverSocketId = this.onlineUsers.get(receiverId);
             if (receiverSocketId && receiverSocketId !== socket.id) {
-              this.io.to(receiverSocketId).emit("newMessage", { 
-                message: messageData, 
-                chatId,
+              this.io.to(receiverSocketId).emit("new_message", {
                 senderId,
-                receiverId,
-                timestamp: message.timestamp
+                chatId,
+                timestamp: message.timestamp,
+                content: `[File: ${fileName}]`,
               });
             }
 
-            console.log(`File sent: ${fileName} (${fileBuffer.length} bytes) from ${senderId} to ${receiverId}`);
+            console.log(
+              `File sent: ${fileName} (${fileBuffer.length} bytes) from ${senderId} to ${receiverId}`
+            );
           } catch (error) {
             console.error("sendFile error:", error);
             callback?.({ success: false, error: "Failed to send file" });

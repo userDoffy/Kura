@@ -6,7 +6,7 @@ const ChatHeader = ({ selectedUser, onlineUsers, typingUsers, onBack }) => {
   const isTyping = typingUsers.has(selectedUser._id);
 
   return (
-    <div className="p-2 sm:p-3 bg-base-200 border-b border-base-300 sticky top-0 z-10">
+    <div className="p-2 sm:p-3 bg-base-200 border-b border-base-300 sticky top-0 z-10 shadow-sm">
       <div className="flex items-center gap-2">
         {/* Back button - visible on mobile */}
         <button 
@@ -59,14 +59,7 @@ const ChatHeader = ({ selectedUser, onlineUsers, typingUsers, onBack }) => {
             )}
           </p>
         </div>
-
-        {/* More options button */}
-        <button 
-          className="btn btn-ghost btn-xs sm:btn-sm btn-circle flex-shrink-0"
-          aria-label="More options"
-        >
-          <MoreVertical className="w-4 h-4" />
-        </button>
+        
       </div>
     </div>
   );

@@ -421,8 +421,9 @@ const HomePage = () => {
       {/* Sidebar - Fixed width on desktop, full screen on mobile */}
       <div
         className={`${
-          showSidebar ? "flex" : "hidden lg:flex"
-        } flex-shrink-0 w-full lg:w-80 h-full`}
+          showSidebar ? "translate-x-0" : "-translate-x-full"
+        } fixed top-0 left-14 right-0 bottom-0 z-40 bg-base-100
+  transition-transform duration-200 lg:static lg:translate-x-0 lg:w-80 border-r border-base-300`}
       >
         <UserListSidebar
           users={users}
@@ -436,9 +437,9 @@ const HomePage = () => {
 
       {/* Chat area - Properly constrained */}
       <div
-        className={`flex-1 flex flex-col ${
+        className={`flex-1 flex flex-col min-h-0 ${
           !showSidebar || selectedUser ? "flex" : "hidden lg:flex"
-        } h-full`}
+        }`}
       >
         {selectedUser ? (
           <>
@@ -455,7 +456,7 @@ const HomePage = () => {
             {/* Messages Area - Scrollable middle section */}
             <div
               ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto px-4 py-4 bg-gradient-to-b from-base-100/50 to-base-100/30 backdrop-blur-sm smooth-scroll"
+              className="flex-1 min-h-0 overflow-y-auto px-2 sm:px-4 py-2 sm:py-4 bg-gradient-to-b from-base-100/50 to-base-100/30 backdrop-blur-sm scroll-smooth"
             >
               {messagesLoading ? (
                 <div className="flex items-center justify-center h-full">
@@ -483,7 +484,7 @@ const HomePage = () => {
             </div>
 
             {/* Message Input*/}
-            <div className="border-t border-base-300 bg-base-100/95 backdrop-blur-sm">
+            <div className="border-t border-base-300 bg-base-100/95 backdrop-blur-sm flex-shrink-0">
               <MessageInput
                 newMessage={newMessage}
                 onMessageChange={handleTyping}

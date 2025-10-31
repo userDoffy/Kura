@@ -106,3 +106,8 @@ export const getMessages = async () => {
   const response = await axiosInstance.get("/admin/getMessages");
   return response.data;
 };
+
+export const getChatList = async () => {
+  const response = await axiosInstance.get("/chat/getChatList");
+  return response.data;
+}
