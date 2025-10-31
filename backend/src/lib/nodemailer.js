@@ -1,18 +1,22 @@
-import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
+import nodemailer from "nodemailer";
+import dotenv from "dotenv";
 dotenv.config();
 
 const transporter = nodemailer.createTransport({
-    host: 'smtp-relay.brevo.com',
-    port: 587,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
-    },
-    secure: false,
+  host: "smtp-relay.brevo.com",
+  port: 465,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASSWORD,
+  },
+  secure: true,
+  tls: {
+    rejectUnauthorized: false,
+  },
 });
 
 export const sendOtpEmail = async (to, otp) => {
+  console.log("Sending verification code");
   await transporter.sendMail({
     from: `"Kura – Secure Chat" <${process.env.SENDER_EMAIL}>`,
     to,
@@ -46,4 +50,4 @@ export const sendOtpEmail = async (to, otp) => {
   });
 };
 
-export default transporter
+export default transporter;
