@@ -34,7 +34,11 @@ const MessageBubble = ({ message, isOwn, onDeleteMessage }) => {
     );
 
   const getFileIcon = (fileName) =>
-    isImageFile(fileName) ? <Image className="w-4 h-4" /> : <File className="w-4 h-4" />;
+    isImageFile(fileName) ? (
+      <Image className="w-4 h-4" />
+    ) : (
+      <File className="w-4 h-4" />
+    );
 
   // File download
   const handleFileDownload = () => {
@@ -71,35 +75,37 @@ const MessageBubble = ({ message, isOwn, onDeleteMessage }) => {
   }
 
   return (
-    <div className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-2 group`}>
+    <div
+      className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-2 group`}
+    >
       {/* Delete button for own messages */}
       {isOwn && !message.isOptimistic && (
-        <div className="mr-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        <div className="mr-1 flex-shrink-0 flex items-center">
           {!showConfirmation ? (
             <button
               onClick={() => setShowConfirmation(true)}
-              className="btn btn-ghost btn-xs btn-circle text-error hover:bg-error/20"
+              className="btn btn-ghost btn-circle btn-xs text-error hover:bg-error/20"
             >
-              <Trash2 className="w-3 h-3" />
+              <Trash2 className="w-4 h-4" />
             </button>
           ) : (
             <div className="flex gap-1">
               <button
                 onClick={handleConfirmDelete}
                 disabled={isDeleting}
-                className="btn btn-ghost btn-xs btn-circle text-success hover:bg-success/20"
+                className="btn btn-ghost btn-circle btn-xs text-success hover:bg-success/20"
               >
                 {isDeleting ? (
                   <span className="loading loading-spinner loading-xs"></span>
                 ) : (
-                  <Check className="w-3 h-3" />
+                  <Check className="w-4 h-4" />
                 )}
               </button>
               <button
                 onClick={() => setShowConfirmation(false)}
-                className="btn btn-ghost btn-xs btn-circle text-base-content/60 hover:bg-base-300/50"
+                className="btn btn-ghost btn-circle btn-xs text-base-content/60 hover:bg-base-300/50"
               >
-                <X className="w-3 h-3" />
+                <X className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -124,7 +130,9 @@ const MessageBubble = ({ message, isOwn, onDeleteMessage }) => {
                     {message.fileName}
                   </p>
                   {message.fileSize && (
-                    <p className="text-xs opacity-70">{formatFileSize(message.fileSize)}</p>
+                    <p className="text-xs opacity-70">
+                      {formatFileSize(message.fileSize)}
+                    </p>
                   )}
                 </div>
 
@@ -138,18 +146,21 @@ const MessageBubble = ({ message, isOwn, onDeleteMessage }) => {
                 )}
               </div>
 
-              {!isMobile && isImageFile(message.fileName) && message.fileUrl && (
-                <img
-                  src={message.fileUrl}
-                  alt={message.fileName}
-                  className="rounded-lg max-w-full h-auto cursor-pointer break-words [overflow-wrap:anywhere]"
-                  onClick={handleFileDownload}
-                />
-              )}
+              {!isMobile &&
+                isImageFile(message.fileName) &&
+                message.fileUrl && (
+                  <img
+                    src={message.fileUrl}
+                    alt={message.fileName}
+                    className="rounded-lg max-w-[200px] max-h-[150px] object-cover cursor-pointer"
+                    onClick={handleFileDownload}
+                  />
+                )}
 
               {message.isOptimistic && (
                 <div className="flex items-center gap-2 text-xs opacity-70">
-                  <span className="loading loading-spinner loading-xs"></span> Uploading...
+                  <span className="loading loading-spinner loading-xs"></span>{" "}
+                  Uploading...
                 </div>
               )}
             </div>
@@ -161,8 +172,14 @@ const MessageBubble = ({ message, isOwn, onDeleteMessage }) => {
         </div>
 
         {/* Timestamp and read status */}
-        <div className={`flex items-center gap-1 mt-0.5 px-2 ${isOwn ? "justify-end" : ""}`}>
-          <span className="text-xs opacity-60">{formatTime(message.timestamp)}</span>
+        <div
+          className={`flex items-center gap-1 mt-0.5 px-2 ${
+            isOwn ? "justify-end" : ""
+          }`}
+        >
+          <span className="text-xs opacity-60">
+            {formatTime(message.timestamp)}
+          </span>
           {isOwn && (
             <span className="opacity-60">
               {message.isOptimistic ? (
