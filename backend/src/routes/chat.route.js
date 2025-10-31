@@ -23,3 +23,4 @@ router.patch('/read/:chatId', protectRoute, markAsRead);
 router.delete('/message/:messageId', protectRoute, deleteMessage);
 
 export default router;
+

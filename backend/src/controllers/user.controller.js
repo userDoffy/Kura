@@ -11,6 +11,7 @@ export const getRecommendedUsers = async (req, res) => {
         { _id: { $ne: currentUserId } }, //exclude current user
         { _id: { $nin: currentUser.friends } }, // exclude current user's friends
         { isVerified: true },
+        { isAdmin: false },
       ],
     });
     res.status(200).json(recommendedUsers);
@@ -177,7 +178,6 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-
 export const changePassword = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -188,7 +188,8 @@ export const changePassword = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     const isMatch = await user.matchPassword(oldPassword);
-    if (!isMatch) return res.status(400).json({ message: "Incorrect old password" });
+    if (!isMatch)
+      return res.status(400).json({ message: "Incorrect old password" });
 
     user.password = newPassword;
     await user.save();
@@ -211,7 +212,9 @@ export const declineFriendRequest = async (req, res) => {
     }
 
     if (friendRequest.recipient.toString() !== req.user.id) {
-      return res.status(403).json({ message: "Not authorized to decline this request" });
+      return res
+        .status(403)
+        .json({ message: "Not authorized to decline this request" });
     }
 
     // Delete the request (decline = remove it)
