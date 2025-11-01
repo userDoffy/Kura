@@ -224,7 +224,8 @@ const FriendsPage = () => {
   };
 
   return (
-    <div className="max-w-7xl p-4 sm:p-6 lg:p-8 bg-base-100">
+    <div className="bg-base-100">
+    <div className="max-w-7xl p-4 sm:p-6 lg:p-8 mx-auto">
       <Toaster position="top-right" />
 
       {/* Header */}
@@ -270,6 +271,7 @@ const FriendsPage = () => {
       <div className="min-h-[400px]">
         {renderContent()}
       </div>
+    </div>
     </div>
   );
 };
