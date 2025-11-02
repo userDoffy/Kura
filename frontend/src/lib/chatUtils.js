@@ -60,7 +60,6 @@ const xorBytes = (data, key) => {
 /* ---------- Public API: Encrypt / Decrypt with XOR+Base64+AES ---------- */
 export const encryptMessage = (message, senderId, receiverId) => {
   const sharedKey = generateSharedKey(senderId, receiverId);
-  console.log("Shared Key generated:", sharedKey);
 
   // 1) UTF-8 → bytes
   const encoder = new TextEncoder();

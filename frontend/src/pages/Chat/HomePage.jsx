@@ -97,6 +97,7 @@ const HomePage = () => {
 
       // Handle different message types
       if (message.messageType === "text") {
+        processedMessage.encryptedContent = message.content;
         processedMessage.content = decryptMessage(
           message.content,
           authUser._id,
@@ -173,6 +174,7 @@ const HomePage = () => {
               // Decrypt text content
               return {
                 ...msg,
+                encryptedContent: msg.content,
                 content: decryptMessage(
                   msg.content,
                   authUser._id,
@@ -244,6 +246,7 @@ const HomePage = () => {
     const optimisticMessage = {
       _id: tempId,
       content: newMessage.trim(),
+      encryptedContent: encryptedContent,
       senderId: authUser._id,
       receiverId: selectedUser._id,
       timestamp: new Date(),
@@ -269,6 +272,7 @@ const HomePage = () => {
                 ? {
                     ...response.message,
                     content: newMessage.trim(),
+                    encryptedContent: encryptedContent,
                     timestamp: new Date(response.message.timestamp),
                   }
                 : msg

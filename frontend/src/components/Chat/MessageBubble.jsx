@@ -9,12 +9,15 @@ import {
   Image,
   Trash2,
   X,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { formatTime } from "../../lib/chatUtils";
 
 const MessageBubble = ({ message, isOwn, onDeleteMessage }) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showEncrypted, setShowEncrypted] = useState(false);
 
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
@@ -74,40 +77,62 @@ const MessageBubble = ({ message, isOwn, onDeleteMessage }) => {
     );
   }
 
+  // Check if message has encrypted content (only for text messages)
+  const hasEncryptedContent =
+    message.messageType === "text" && message.encryptedContent;
+
   return (
     <div
       className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-2 group`}
     >
-      {/* Delete button for own messages */}
-      {isOwn && !message.isOptimistic && (
-        <div className="mr-1 flex-shrink-0 flex items-center">
-          {!showConfirmation ? (
+      {/* Action buttons - positioned based on message ownership */}
+      {!message.isOptimistic && (
+        <div className={`flex-shrink-0 flex items-center gap-1 ${isOwn ? 'mr-1' : 'ml-1 order-2'}`}>
+          {/* Encryption toggle button - shown for all text messages */}
+          {hasEncryptedContent && (
             <button
-              onClick={() => setShowConfirmation(true)}
-              className="btn btn-ghost btn-circle btn-xs text-error hover:bg-error/20"
+              onClick={() => setShowEncrypted(!showEncrypted)}
+              className="btn btn-ghost btn-circle btn-xs text-info hover:bg-info/20"
+              title={showEncrypted ? "Show decrypted" : "Show encrypted"}
             >
-              <Trash2 className="w-4 h-4" />
+              {showEncrypted ? (
+                <EyeOff className="w-4 h-4" />
+              ) : (
+                <Eye className="w-4 h-4" />
+              )}
             </button>
-          ) : (
-            <div className="flex gap-1">
+          )}
+
+          {/* Delete button - only for own messages */}
+          {isOwn && (
+            !showConfirmation ? (
               <button
-                onClick={handleConfirmDelete}
-                disabled={isDeleting}
-                className="btn btn-ghost btn-circle btn-xs text-success hover:bg-success/20"
+                onClick={() => setShowConfirmation(true)}
+                className="btn btn-ghost btn-circle btn-xs text-error hover:bg-error/20"
               >
-                {isDeleting ? (
-                  <span className="loading loading-spinner loading-xs"></span>
-                ) : (
-                  <Check className="w-4 h-4" />
-                )}
+                <Trash2 className="w-4 h-4" />
               </button>
-              <button
-                onClick={() => setShowConfirmation(false)}
-                className="btn btn-ghost btn-circle btn-xs text-base-content/60 hover:bg-base-300/50"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+            ) : (
+              <div className="flex gap-1">
+                <button
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                  className="btn btn-ghost btn-circle btn-xs text-success hover:bg-success/20"
+                >
+                  {isDeleting ? (
+                    <span className="loading loading-spinner loading-xs"></span>
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowConfirmation(false)}
+                  className="btn btn-ghost btn-circle btn-xs text-base-content/60 hover:bg-base-300/50"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )
           )}
         </div>
       )}
@@ -165,9 +190,17 @@ const MessageBubble = ({ message, isOwn, onDeleteMessage }) => {
               )}
             </div>
           ) : (
-            <p className="text-sm whitespace-pre-wrap leading-relaxed break-words [overflow-wrap:anywhere]">
-              {message.content}
-            </p>
+            /* Text message */
+            <div className="space-y-1">
+              <p className="text-sm whitespace-pre-wrap leading-relaxed break-words [overflow-wrap:anywhere]">
+                {showEncrypted ? message.encryptedContent : message.content}
+              </p>
+              {showEncrypted && (
+                <p className="text-xs opacity-60 italic">
+                  (Encrypted format)
+                </p>
+              )}
+            </div>
           )}
         </div>
 
