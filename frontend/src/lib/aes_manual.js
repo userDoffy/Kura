@@ -40,6 +40,8 @@ const INV_SBOX = [
   0x17,0x2b,0x04,0x7e,0xba,0x77,0xd6,0x26,0xe1,0x69,0x14,0x63,0x55,0x21,0x0c,0x7d
 ];
 
+
+
 /* ---------- Text ↔ Byte Helpers ---------- */
 export const textToBytes = (str) => new Uint8Array([...unescape(encodeURIComponent(str))].map(c => c.charCodeAt(0)));
 export const bytesToText = (bytes) => decodeURIComponent(escape(String.fromCharCode(...bytes)));

@@ -32,13 +32,10 @@ const useForm = (initialState) => {
     }
 
     // --- Password ---
+    // --- Password ---
     if (name === "password") {
-      if (value.length < 6) {
-        message = "Password must be at least 6 characters long";
-      } else if (!/[A-Z]/.test(value)) {
-        message = "Password must contain at least one uppercase letter";
-      } else if (!/[a-z]/.test(value)) {
-        message = "Password must contain at least one lowercase letter";
+      if (value.length < 8) {
+        message = "Password must be at least 8 characters long";
       } else if (!/[0-9]/.test(value)) {
         message = "Password must contain at least one number";
       } else if (!/[^A-Za-z0-9]/.test(value)) {

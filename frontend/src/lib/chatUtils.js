@@ -7,6 +7,8 @@ import {
   hexToBytes
 } from "./aes_manual.js";
 
+//word -> bytes-> 16 bytes blocks -> encrypt each block -> base64
+
 /* ---------- Key Derivation ---------- */
 export const generateSharedKey = (userId1, userId2) => {
   const sortedIds = [userId1, userId2].sort();

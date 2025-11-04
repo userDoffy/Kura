@@ -21,7 +21,7 @@ const ProfilePage = () => {
   const { authUser } = useAuthUser();
   const queryClient = useQueryClient();
 
-  const { formData, handleChange, setFormData } = useForm({
+  const { formData, handleChange, setFormData, errors } = useForm({
     profilepic: authUser?.profilepic || "",
     username: authUser?.username || "",
     bio: authUser?.bio || "",
@@ -30,6 +30,7 @@ const ProfilePage = () => {
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [passwordData, setPasswordData] = useState({
     oldPassword: "",
@@ -82,6 +83,21 @@ const ProfilePage = () => {
   });
 
   // Change password
+  const validatePassword = (value) => {
+    if (value.length < 8) {
+      return "Password must be at least 8 characters long";
+    } else if (!/[A-Z]/.test(value)) {
+      return "Password must contain at least one uppercase letter";
+    } else if (!/[a-z]/.test(value)) {
+      return "Password must contain at least one lowercase letter";
+    } else if (!/[0-9]/.test(value)) {
+      return "Password must contain at least one number";
+    } else if (!/[^A-Za-z0-9]/.test(value)) {
+      return "Password must contain at least one special character";
+    }
+    return "";
+  };
+
   const { mutate: changePassword, isPending: isChanging } = useMutation({
     mutationFn: changeUserPassword,
     onSuccess: () => {
@@ -108,8 +124,9 @@ const ProfilePage = () => {
       toast.error("Please enter your current password");
       return;
     }
-    if (passwordData.newPassword.length < 6) {
-      toast.error("New password must be at least 6 characters");
+    const error = validatePassword(passwordData.newPassword);
+    if (error) {
+      toast.error(error);
       return;
     }
     changePassword(passwordData);
@@ -210,7 +227,7 @@ const ProfilePage = () => {
                   required
                 />
               </div>
-             
+
               {/* Bio */}
               <div className="form-control">
                 <label className="label">
@@ -329,12 +346,14 @@ const ProfilePage = () => {
                       placeholder="Enter new password"
                       className="input input-bordered w-full pr-10 focus:ring-2 focus:ring-primary/20 transition-all duration-200"
                       value={passwordData.newPassword}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const value = e.target.value;
                         setPasswordData({
                           ...passwordData,
-                          newPassword: e.target.value,
-                        })
-                      }
+                          newPassword: value,
+                        });
+                        setPasswordError(validatePassword(value));
+                      }}
                     />
                     <button
                       type="button"
@@ -349,8 +368,13 @@ const ProfilePage = () => {
                     </button>
                   </div>
                   <label className="label">
-                    <span className="label-text-alt text-base-content/60">
-                      Password must be at least 6 characters
+                    <span
+                      className={`label-text-alt ${
+                        passwordError ? "text-error" : "text-base-content/60"
+                      }`}
+                    >
+                      {passwordError ||
+                        "Must include at least 8 characters and a number & special character"}
                     </span>
                   </label>
                 </div>
