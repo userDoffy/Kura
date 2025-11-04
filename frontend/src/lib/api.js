@@ -1,6 +1,14 @@
 import axiosInstance from "./axios.js";
 
 // ---------------- Auth Apis ----------------
+
+// Step 1: Send verification code (no auth needed)
+export const sendVerificationCode = async (email) => {
+  const response = await axiosInstance.post("/auth/send-verification", { email });
+  return response.data;
+};
+
+// Step 2: Complete signup with all info + verification
 export const signup = async (formData) => {
   const response = await axiosInstance.post("/auth/signup", formData);
   return response.data;
@@ -11,18 +19,19 @@ export const login = async (formData) => {
   return response.data;
 };
 
+export const logout = async () => {
+  const response = await axiosInstance.post("/auth/logout");
+  return response.data;
+};
+
+// For existing unverified users (optional)
 export const completeVerification = async (formData) => {
   const response = await axiosInstance.post("/auth/verify", formData);
   return response.data;
 };
 
-export const sendVerification = async (formData) => {
-  const response = await axiosInstance.post("/auth/send-verification", formData);
-  return response.data;
-};
-
-export const logout = async () => {
-  const response = await axiosInstance.post("/auth/logout");
+export const resendVerification = async () => {
+  const response = await axiosInstance.post("/auth/resend-verification");
   return response.data;
 };
 
@@ -91,4 +100,4 @@ export const removeFriend = async (id) => {
 export const getChatList = async () => {
   const response = await axiosInstance.get("/chat/getChatList");
   return response.data;
-}
+};

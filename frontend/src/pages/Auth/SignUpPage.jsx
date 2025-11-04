@@ -1,24 +1,38 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router";
-import { signup } from "../../lib/api.js";
+import { signup, sendVerificationCode } from "../../lib/api.js";
 import useForm from "../../hooks/useForm.js";
 import { useThemeStore } from "../../store/useThemeStore.js";
+import { FiCamera, FiUser, FiMapPin, FiGlobe, FiMail, FiLock, FiArrowLeft } from "react-icons/fi";
+import { uploadToCloudinary } from "../../lib/cloudinary.js";
+import { toast } from "react-hot-toast";
 
 const SignUpPage = () => {
-  const { formData, handleChange, errors } = useForm({
+  const { theme } = useThemeStore();
+  const queryClient = useQueryClient();
+  
+  // Multi-step state
+  const [currentStep, setCurrentStep] = useState(1);
+  const [tempToken, setTempToken] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const { formData, handleChange, errors, setFormData } = useForm({
     username: "",
     email: "",
     password: "",
     confirmPassword: "",
+    bio: "",
+    language: "",
+    location: "",
+    profilepic: "",
+    verificationCode: "",
   });
-  const { theme } = useThemeStore();
 
-  // Animated rotating text with fade
+  // Animated rotating text
   const words = ["Create", "Connect", "Grow"];
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
-  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -31,50 +45,93 @@ const SignUpPage = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const queryClient = useQueryClient();
-
-  const {
-    mutate: signupMutation,
-    isPending,
-    error,
-  } = useMutation({
-    mutationFn: signup,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["authUser"] });
+  // Send verification code mutation
+  const { mutate: sendCode, isPending: isSendingCode } = useMutation({
+    mutationFn: sendVerificationCode,
+    onSuccess: (data) => {
+      setTempToken(data.tempToken);
+      toast.success("Verification code sent to your email!");
+      setCurrentStep(3);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Failed to send code");
     },
   });
 
-  const handleSubmit = (e) => {
+  // Complete signup mutation
+  const { mutate: signupMutation, isPending: isSigningUp, error: signupError } = useMutation({
+    mutationFn: signup,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      toast.success("Account created successfully!");
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Signup failed");
+    },
+  });
+
+  // Handle profile picture upload
+  const handleProfilePicUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      toast.loading("Uploading image...");
+      const url = await uploadToCloudinary(file);
+      setFormData((prev) => ({ ...prev, profilepic: url }));
+      toast.dismiss();
+      toast.success("Image uploaded!");
+    } catch (err) {
+      console.error("Upload error:", err);
+      toast.dismiss();
+      toast.error(err?.message || "Failed to upload image");
+    }
+  };
+
+  const triggerFileInput = () => {
+    document.getElementById("profilePicInput").click();
+  };
+
+  // Step 1: Basic credentials
+  const handleStep1Submit = (e) => {
     e.preventDefault();
-    if (
-      errors.username ||
-      errors.email ||
-      errors.password ||
-      errors.confirmPassword
-    )
+    if (errors.username || errors.email || errors.password || errors.confirmPassword) {
+      toast.error("Please fix the errors before continuing");
       return;
-    signupMutation(formData);
+    }
+    setCurrentStep(2);
   };
 
-  // Password strength indicator
-  const getPasswordStrength = (password) => {
-    if (!password) return { strength: 0, text: "", color: "" };
-    let strength = 0;
-    if (password.length >= 8) strength++;
-    if (/[A-Z]/.test(password)) strength++;
-    if (/[0-9]/.test(password)) strength++;
-    if (/[^A-Za-z0-9]/.test(password)) strength++;
-
-    const levels = [
-      { text: "Very Weak", color: "text-error" },
-      { text: "Weak", color: "text-warning" },
-      { text: "Good", color: "text-info" },
-      { text: "Strong", color: "text-success" },
-    ];
-
-    return { strength, ...levels[Math.min(strength, 3)] };
+  // Step 2: Profile details and send code
+  const handleStep2Submit = (e) => {
+    e.preventDefault();
+    if (!formData.bio || !formData.language || !formData.location) {
+      toast.error("Please fill all profile fields");
+      return;
+    }
+    // Send verification code
+    sendCode(formData.email);
   };
 
+  // Step 3: Final verification and signup
+  const handleStep3Submit = (e) => {
+    e.preventDefault();
+    if (!formData.verificationCode || formData.verificationCode.length !== 6) {
+      toast.error("Please enter a valid 6-digit code");
+      return;
+    }
+    
+    signupMutation({
+      ...formData,
+      tempToken,
+    });
+  };
+
+  const goBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
 
   return (
     <div
@@ -82,27 +139,23 @@ const SignUpPage = () => {
       data-theme={theme}
     >
       <div className="w-full max-w-5xl">
-        {/* Compact Header */}
+        {/* Header */}
         <div className="text-center mb-6">
           <h1 className="text-4xl font-bold text-primary mb-1">Kura</h1>
           <div className="h-6 flex items-center justify-center">
             <span
               className={`text-lg font-semibold transition-all duration-300 ${
-                isVisible
-                  ? "opacity-100 transform translate-y-0"
-                  : "opacity-0 transform -translate-y-2"
+                isVisible ? "opacity-100 transform translate-y-0" : "opacity-0 transform -translate-y-2"
               } text-secondary`}
             >
               {words[currentWordIndex]}
             </span>
           </div>
-          <p className="text-base-content/60 text-sm mt-1">
-            Join our growing community
-          </p>
+          <p className="text-base-content/60 text-sm mt-1">Join our growing community</p>
         </div>
 
-        {/* Main Content Card */}
-        <div className="flex bg-base-100 rounded-xl shadow-xl overflow-hidden border border-base-300 max-h-[600px]">
+        {/* Main Card */}
+        <div className="flex bg-base-100 rounded-xl shadow-xl overflow-hidden border border-base-300">
           {/* Left Side - Image & Info */}
           <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-secondary/5 to-primary/5 p-8 flex-col justify-center items-center relative overflow-hidden">
             <div className="absolute inset-0 opacity-10">
@@ -116,25 +169,16 @@ const SignUpPage = () => {
                 alt="Join Community"
                 className="max-w-xs rounded-lg shadow-lg mb-4"
               />
-              <h3 className="text-lg font-bold text-primary mb-2">
-                Join the Community
-              </h3>
+              <h3 className="text-lg font-bold text-primary mb-2">Join the Community</h3>
               <p className="text-base-content/70 text-sm leading-relaxed mb-4">
-                Be part of a growing community of users who value meaningful
-                connections.
+                Be part of a growing community of users who value meaningful connections.
               </p>
 
               {/* Feature Pills */}
               <div className="flex flex-wrap gap-1 justify-center">
-                <span className="badge badge-primary badge-outline badge-xs">
-                  Free Forever
-                </span>
-                <span className="badge badge-secondary badge-outline badge-xs">
-                  No Ads
-                </span>
-                <span className="badge badge-accent badge-outline badge-xs">
-                  Privacy First
-                </span>
+                <span className="badge badge-primary badge-outline badge-xs">Free Forever</span>
+                <span className="badge badge-secondary badge-outline badge-xs">No Ads</span>
+                <span className="badge badge-accent badge-outline badge-xs">Privacy First</span>
               </div>
             </div>
           </div>
@@ -142,188 +186,288 @@ const SignUpPage = () => {
           {/* Right Side - Form */}
           <div className="w-full lg:w-3/5 p-6">
             <div className="max-w-sm mx-auto">
-              {/* Form Header */}
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-base-content mb-1">
-                  Get Started
-                </h2>
-                <p className="text-base-content/60 text-sm">
-                  Create your account today
-                </p>
+              {/* Progress Steps */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <div className={`flex items-center ${currentStep >= 1 ? "text-primary" : "text-base-content/40"}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mr-2 ${currentStep >= 1 ? "bg-primary text-white" : "bg-base-300"}`}>
+                      1
+                    </div>
+                    <span className="text-xs font-medium hidden sm:inline">Account</span>
+                  </div>
+                  <div className="flex-1 h-px bg-base-300 mx-2"></div>
+                  <div className={`flex items-center ${currentStep >= 2 ? "text-primary" : "text-base-content/40"}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mr-2 ${currentStep >= 2 ? "bg-primary text-white" : "bg-base-300"}`}>
+                      2
+                    </div>
+                    <span className="text-xs font-medium hidden sm:inline">Profile</span>
+                  </div>
+                  <div className="flex-1 h-px bg-base-300 mx-2"></div>
+                  <div className={`flex items-center ${currentStep >= 3 ? "text-primary" : "text-base-content/40"}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mr-2 ${currentStep >= 3 ? "bg-primary text-white" : "bg-base-300"}`}>
+                      3
+                    </div>
+                    <span className="text-xs font-medium hidden sm:inline">Verify</span>
+                  </div>
+                </div>
               </div>
 
-              {/* SignUp Form */}
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Username Field */}
-                <div className="form-control">
-                  <label className="label py-1">
-                    <span className="label-text text-sm font-medium">
-                      Username
-                    </span>
-                  </label>
-                  <input
-                    type="text"
-                    name="username"
-                    className="input input-bordered input-sm w-full focus:input-primary transition-colors duration-200"
-                    placeholder="Choose a username"
-                    value={formData.username}
-                    onChange={handleChange}
-                    required
-                  />
-                  {errors.username && (
-                    <p className="text-error text-xs mt-1">{errors.username}</p>
-                  )}
-                  
-                </div>
+              {/* Back Button */}
+              {currentStep > 1 && (
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="btn btn-ghost btn-sm mb-4 gap-1"
+                >
+                  <FiArrowLeft className="w-4 h-4" />
+                  Back
+                </button>
+              )}
 
-                {/* Email Field */}
-                <div className="form-control">
-                  <label className="label py-1">
-                    <span className="label-text text-sm font-medium">
-                      Email Address
-                    </span>
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    className="input input-bordered input-sm w-full focus:input-primary transition-colors duration-200"
-                    placeholder="Enter your email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                  />
-                  {errors.email && (
-                    <p className="text-error text-xs mt-1">{errors.email}</p>
-                  )}
-                </div>
+              {/* Step 1: Basic Credentials */}
+              {currentStep === 1 && (
+                <form onSubmit={handleStep1Submit} className="space-y-4">
+                  <div className="text-center mb-4">
+                    <h2 className="text-2xl font-bold text-base-content mb-1">Create Account</h2>
+                    <p className="text-base-content/60 text-sm">Let's get you started</p>
+                  </div>
 
-                {/* Password Field */}
-                <div className="form-control">
-                  <label className="label py-1">
-                    <span className="label-text text-sm font-medium">
-                      Password
-                    </span>
-                  </label>
-                  <div className="relative">
+                  <div className="form-control">
+                    <label className="label py-1">
+                      <span className="label-text text-sm font-medium flex items-center gap-1">
+                        <FiUser className="w-3 h-3" />
+                        Username
+                      </span>
+                    </label>
                     <input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      className="input input-bordered input-sm w-full pr-10 focus:input-primary transition-colors duration-200"
-                      placeholder="Create a password"
-                      value={formData.password}
+                      type="text"
+                      name="username"
+                      className="input input-bordered input-sm w-full focus:input-primary"
+                      placeholder="Choose a username"
+                      value={formData.username}
                       onChange={handleChange}
                       required
                     />
-                    {errors.password && (
-                      <p className="text-error text-xs mt-1">
-                        {errors.password}
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-base-content/60 hover:text-base-content transition-colors"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.76 6.76a10.031 10.031 0 00-.908 5.457"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.543 7-1.275 4.057-5.065 7-9.543 7-4.477 0-8.268-2.943-9.542-7z"
-                          />
-                        </svg>
-                      )}
-                    </button>
+                    {errors.username && <p className="text-error text-xs mt-1">{errors.username}</p>}
                   </div>
-                  
-                </div>
 
-                {/* Confirm Password Field */}
-                <div className="form-control">
-                  <label className="label py-1">
-                    <span className="label-text text-sm font-medium">
-                      Confirm Password
-                    </span>
-                  </label>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    name="confirmPassword"
-                    className="input input-bordered input-sm w-full focus:input-primary transition-colors duration-200"
-                    placeholder="Re-enter password"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    required
-                  />
-                  {errors.confirmPassword && (
-                    <p className="text-error text-xs mt-1">
-                      {errors.confirmPassword}
+                  <div className="form-control">
+                    <label className="label py-1">
+                      <span className="label-text text-sm font-medium flex items-center gap-1">
+                        <FiMail className="w-3 h-3" />
+                        Email Address
+                      </span>
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      className="input input-bordered input-sm w-full focus:input-primary"
+                      placeholder="Enter your email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      required
+                    />
+                    {errors.email && <p className="text-error text-xs mt-1">{errors.email}</p>}
+                  </div>
+
+                  <div className="form-control">
+                    <label className="label py-1">
+                      <span className="label-text text-sm font-medium flex items-center gap-1">
+                        <FiLock className="w-3 h-3" />
+                        Password
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        className="input input-bordered input-sm w-full pr-10 focus:input-primary"
+                        placeholder="Create a password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        required
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-base-content/60 hover:text-base-content"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? "👁️" : "👁️‍🗨️"}
+                      </button>
+                    </div>
+                    {errors.password && <p className="text-error text-xs mt-1">{errors.password}</p>}
+                  </div>
+
+                  <div className="form-control">
+                    <label className="label py-1">
+                      <span className="label-text text-sm font-medium">Confirm Password</span>
+                    </label>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      className="input input-bordered input-sm w-full focus:input-primary"
+                      placeholder="Re-enter password"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      required
+                    />
+                    {errors.confirmPassword && <p className="text-error text-xs mt-1">{errors.confirmPassword}</p>}
+                  </div>
+
+                  <button type="submit" className="btn btn-primary btn-sm w-full">
+                    Continue
+                  </button>
+                </form>
+              )}
+
+              {/* Step 2: Profile Details */}
+              {currentStep === 2 && (
+                <form onSubmit={handleStep2Submit} className="space-y-4">
+                  <div className="text-center mb-4">
+                    <h2 className="text-2xl font-bold text-base-content mb-1">Your Profile</h2>
+                    <p className="text-base-content/60 text-sm">Tell us about yourself</p>
+                  </div>
+
+                  {/* Profile Picture */}
+                  <div className="flex flex-col items-center space-y-3">
+                    <div
+                      className="relative cursor-pointer group rounded-full overflow-hidden w-20 h-20 shadow-lg hover:shadow-xl transition-shadow ring-2 ring-primary/20 hover:ring-primary/40"
+                      onClick={triggerFileInput}
+                    >
+                      <img
+                        src={formData.profilepic || `https://robohash.org/${Math.floor(Math.random() * 100) + 1}.png`}
+                        alt="Profile"
+                        className="object-cover w-full h-full"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FiCamera className="text-white text-xl" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-base-content/60">Click to upload photo (optional)</p>
+                    <input
+                      type="file"
+                      id="profilePicInput"
+                      accept="image/*"
+                      onChange={handleProfilePicUpload}
+                      className="hidden"
+                    />
+                  </div>
+
+                  <div className="form-control">
+                    <label className="label py-1">
+                      <span className="label-text text-sm font-medium">Bio</span>
+                    </label>
+                    <textarea
+                      name="bio"
+                      rows="2"
+                      className="textarea textarea-bordered textarea-sm w-full resize-none focus:textarea-primary"
+                      placeholder="Tell us about yourself..."
+                      value={formData.bio}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="form-control">
+                      <label className="label py-1">
+                        <span className="label-text text-sm font-medium flex items-center gap-1">
+                          <FiGlobe className="w-3 h-3" />
+                          Language
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        name="language"
+                        className="input input-bordered input-sm w-full focus:input-primary"
+                        placeholder="e.g., English"
+                        value={formData.language}
+                        onChange={handleChange}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-control">
+                      <label className="label py-1">
+                        <span className="label-text text-sm font-medium flex items-center gap-1">
+                          <FiMapPin className="w-3 h-3" />
+                          Location
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        name="location"
+                        className="input input-bordered input-sm w-full focus:input-primary"
+                        placeholder="e.g., Kathmandu"
+                        value={formData.location}
+                        onChange={handleChange}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className={`btn btn-primary btn-sm w-full ${isSendingCode ? "loading" : ""}`}
+                    disabled={isSendingCode}
+                  >
+                    {isSendingCode ? "Sending Code..." : "Send Verification Code"}
+                  </button>
+                </form>
+              )}
+
+              {/* Step 3: Verification */}
+              {currentStep === 3 && (
+                <form onSubmit={handleStep3Submit} className="space-y-4">
+                  <div className="text-center mb-4">
+                    <h2 className="text-2xl font-bold text-base-content mb-1">Verify Email</h2>
+                    <p className="text-base-content/60 text-sm">
+                      We sent a code to <strong>{formData.email}</strong>
                     </p>
-                  )}
-                </div>
-
-                {/* Error Alert */}
-                {error && (
-                  <div className="alert alert-error py-2 text-sm">
-                    <svg
-                      className="w-5 h-5 shrink-0"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                        clipRule="evenodd"
-                      ></path>
-                    </svg>
-                    <span className="text-xs">
-                      {error.response?.data?.message || "Something went wrong!"}
-                    </span>
                   </div>
-                )}
 
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  className={`btn btn-primary btn-sm w-full font-semibold transition-all duration-200 ${
-                    isPending
-                      ? "loading"
-                      : "hover:scale-[1.02] active:scale-[0.98]"
-                  }`}
-                  disabled={isPending}
-                >
-                  {isPending ? (
-                    <span className="loading loading-spinner loading-xs"></span>
-                  ) : (
-                    "Create Account"
+                  <div className="form-control">
+                    <label className="label py-1">
+                      <span className="label-text text-sm font-medium">Verification Code</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="verificationCode"
+                      className="input input-bordered input-sm w-full focus:input-primary text-center text-lg tracking-widest"
+                      placeholder="000000"
+                      value={formData.verificationCode}
+                      onChange={handleChange}
+                      maxLength="6"
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => sendCode(formData.email)}
+                    className="btn btn-ghost btn-sm w-full"
+                    disabled={isSendingCode}
+                  >
+                    Resend Code
+                  </button>
+
+                  {signupError && (
+                    <div className="alert alert-error py-2 text-sm">
+                      <span className="text-xs">
+                        {signupError.response?.data?.message || "Something went wrong!"}
+                      </span>
+                    </div>
                   )}
-                </button>
-              </form>
+
+                  <button
+                    type="submit"
+                    className={`btn btn-primary btn-sm w-full ${isSigningUp ? "loading" : ""}`}
+                    disabled={isSigningUp}
+                  >
+                    {isSigningUp ? "Creating Account..." : "Complete Signup"}
+                  </button>
+                </form>
+              )}
 
               {/* Footer */}
               <div className="text-center mt-6 pt-4 border-t border-base-300">
@@ -331,7 +475,7 @@ const SignUpPage = () => {
                   Already have an account?{" "}
                   <Link
                     to="/login"
-                    className="text-primary hover:text-primary-focus font-semibold transition-colors duration-200 hover:underline"
+                    className="text-primary hover:text-primary-focus font-semibold hover:underline"
                   >
                     Sign in here
                   </Link>
@@ -341,7 +485,7 @@ const SignUpPage = () => {
           </div>
         </div>
 
-        {/* Compact Bottom Features */}
+        {/* Bottom Features */}
         <div className="grid grid-cols-3 gap-3 mt-6 text-center">
           <div className="bg-base-100/50 backdrop-blur-sm rounded-lg p-3 border border-base-300/50">
             <div className="text-secondary text-lg mb-1">🚀</div>

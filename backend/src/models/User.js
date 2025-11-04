@@ -56,7 +56,6 @@ const userSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
-    isAdmin: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
@@ -85,6 +84,12 @@ userSchema.statics.hashVerificationCode = async function (verificationCode) {
   const salt = await bcrypt.genSalt(10);
   const hashedCode = await bcrypt.hash(verificationCode, salt);
   return hashedCode;
+};
+
+// Static method to verify code without a user instance
+userSchema.statics.verifyCodeStatic = async function (verificationCode, hash) {
+  const isCodeValid = await bcrypt.compare(verificationCode, hash);
+  return isCodeValid;
 };
 
 userSchema.methods.verifyCode = async function (verificationCode) {

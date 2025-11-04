@@ -9,7 +9,6 @@ import {
 import useAuthUser from "./hooks/useAuthUser.js";
 import LoginPage from "./pages/Auth/LoginPage.jsx";
 import SignUpPage from "./pages/Auth/SignUpPage.jsx";
-import VerificationPage from "./pages/Auth/VerificationPage.jsx";
 import Homepage from "./pages/Chat/HomePage.jsx";
 import ProfilePage from "./pages/User/ProfilePage.jsx";
 import FriendsPage from "./pages/User/FriendsPage.jsx";
@@ -30,16 +29,6 @@ function App() {
           <Route path="/signup" element={<SignUpPage />} />
         </Route>
 
-        {/* Verification Route - Special handling for unverified users */}
-        <Route 
-          path="/verification" 
-          element={
-            authUser && !authUser.isVerified ? 
-              <VerificationPage /> : 
-              <Navigate to={authUser ? "/" : "/login"} replace />
-          } 
-        />
-
         {/* User Protected Routes - Only accessible for verified users */}
         <Route element={<ProtectedRoute authUser={authUser} />}>
           <Route element={<Layout />}>
@@ -58,7 +47,6 @@ function App() {
             <Navigate 
               to={
                 !authUser ? "/login" :
-                !authUser.isVerified ? "/verification" :
                 "/"
               } 
               replace 

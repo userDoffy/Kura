@@ -2,59 +2,132 @@ import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import {sendOtpEmail} from "../lib/nodemailer.js";
 
-export const signup = async (req, res) => {
-  const { email, password, username } = req.body;
+// Step 1: Send verification code (before creating user)
+export const sendVerificationCode = async (req, res) => {
+  const { email } = req.body;
 
   try {
-    if (!email || !password || !username) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    if (password.length < 6) {
-      return res
-        .status(400)
-        .json({ message: "Password must be at least 6 characters" });
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
     if (!emailRegex.test(email)) {
       return res.status(400).json({ message: "Invalid email format" });
     }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res
-        .status(400)
-        .json({ message: "Email already exists, please use a diffrent one" });
+      return res.status(400).json({ message: "Email already exists, please use a different one" });
     }
 
-    const idx = Math.floor(Math.random() * 100) + 1; // generate a num between 1-100
-    const randomAvatar = `https://robohash.org/${idx}.png`;
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationCodeHash = await User.hashVerificationCode(verificationCode);
 
+    // Store temporarily in session or return token with hash
+    const tempToken = jwt.sign(
+      { 
+        email,
+        verificationCodeHash,
+        expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes
+      },
+      process.env.JWT_SECRET_KEY,
+      { expiresIn: "15m" }
+    );
 
+    await sendOtpEmail(email, verificationCode);
+
+    res.status(200).json({ 
+      message: "Verification code sent",
+      tempToken 
+    });
+  } catch (error) {
+    console.log("Error in sendVerificationCode controller", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+// Step 2: Complete signup with verification (creates user)
+export const signup = async (req, res) => {
+  const { email, password, username, bio, language, location, profilepic, verificationCode, tempToken } = req.body;
+
+  try {
+    // Validate all fields
+    if (!email || !password || !username || !bio || !language || !location || !verificationCode || !tempToken) {
+      return res.status(400).json({ 
+        message: "All fields are required",
+        missingFields: [
+          !email && "email",
+          !password && "password",
+          !username && "username",
+          !bio && "bio",
+          !language && "language",
+          !location && "location",
+          !verificationCode && "verificationCode",
+          !tempToken && "tempToken"
+        ].filter(Boolean)
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    // Verify the temp token
+    let decoded;
+    try {
+      decoded = jwt.verify(tempToken, process.env.JWT_SECRET_KEY);
+    } catch (err) {
+      return res.status(400).json({ message: "Invalid or expired verification session" });
+    }
+
+    if (decoded.email !== email) {
+      return res.status(400).json({ message: "Email mismatch" });
+    }
+
+    if (Date.now() > decoded.expiresAt) {
+      return res.status(400).json({ message: "Verification code expired" });
+    }
+
+    // Verify the code
+    const isCodeValid = await User.verifyCodeStatic(verificationCode, decoded.verificationCodeHash);
+    if (!isCodeValid) {
+      return res.status(400).json({ message: "Invalid verification code" });
+    }
+
+    // Check if user was created in the meantime
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+
+    // Generate profile picture if not provided
+    const finalProfilePic = profilepic || `https://robohash.org/${Math.floor(Math.random() * 100) + 1}.png`;
+
+    // Create the user (already verified)
     const newUser = await User.create({
       email,
       username,
       password,
-      profilepic: randomAvatar,
+      bio,
+      language,
+      location,
+      profilepic: finalProfilePic,
+      isVerified: true // User is verified from the start
     });
 
-    
-
+    // Generate auth token
     const token = jwt.sign(
       { userId: newUser._id },
       process.env.JWT_SECRET_KEY,
-      {
-        expiresIn: "7d",
-      }
+      { expiresIn: "7d" }
     );
 
     res.cookie("jwt", token, {
       maxAge: 7 * 24 * 60 * 60 * 1000,
       httpOnly: true,
-      //sameSite: "none",
       secure: process.env.NODE_ENV === "production",
+      sameSite:"none"
     });
 
     res.status(201).json({ success: true, user: newUser });
@@ -87,8 +160,8 @@ export const login = async (req, res) => {
     res.cookie("jwt", token, {
       maxAge: 7 * 24 * 60 * 60 * 1000,
       httpOnly: true,
-      //sameSite: "none",
       secure: process.env.NODE_ENV === "production",
+      sameSite:"none"
     });
 
     res.status(200).json({ success: true, user });
@@ -103,72 +176,9 @@ export const logout = (req, res) => {
   res.clearCookie("jwt", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    //sameSite: "none",
+    sameSite:"none"
   });
 
   res.status(200).json({ success: true, message: "Logout successful" });
 };
 
-export const sendVerificationCode = async (req, res) => {
-  const userId = req.user._id;
-  const user = await User.findById(userId);
-
-  if (!user) return res.status(404).json({ message: "User not found" });
-  if (user.isVerified) return res.status(400).json({ message: "Already verified" });
-
-  const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-  user.verificationCodeHash = await User.hashVerificationCode(verificationCode);
-  user.verificationCodeExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-  await user.save();
-
-  await sendOtpEmail(user.email, verificationCode);
-
-  res.status(200).json({ message: "Verification code resent" });
-};
-
-export async function verify(req, res) {
-  try {
-    const userId = req.user._id;
-    const { username, bio, language, location, verificationCode,profilepic } = req.body;
-
-    if (!username || !bio || !language || !location || !verificationCode) {
-      return res.status(400).json({
-        message: "All fields are required",
-        missingFields: [
-          !username && "username",
-          !bio && "bio",
-          !language && "language",
-          !location && "location",
-          !verificationCode && "verificationCode",
-          !profilepic && "profilepic",
-        ].filter(Boolean),
-      });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const isCodeValid = await user.verifyCode(verificationCode);
-    if (!isCodeValid) {
-      return res.status(400).json({ message: "Invalid or expired verification code" });
-    }
-
-    user.username = username;
-    user.bio = bio;
-    user.language = language;
-    user.location = location;
-    user.profilepic = profilepic || user.profilepic;
-    user.isVerified = true;
-    user.verificationCodeHash = "";
-    user.verificationCodeExpiresAt = null;
-
-    await user.save();  
-
-    res.status(200).json({ success: true, user });
-  } catch (error) {
-    console.error("Verification error:", error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
-}
