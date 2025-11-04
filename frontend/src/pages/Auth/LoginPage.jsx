@@ -6,7 +6,7 @@ import useForm from "../../hooks/useForm.js";
 import { useThemeStore } from "../../store/useThemeStore.js";
 
 const LoginPage = () => {
-  const { formData, handleChange } = useForm({
+  const { formData, handleChange,errors } = useForm({
     email: "",
     password: "",
   });
@@ -39,9 +39,10 @@ const LoginPage = () => {
   });
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    loginMutation(formData);
-  };
+  e.preventDefault();
+  if (errors.email || errors.password) return;
+  loginMutation(formData);
+};
 
   return (
     <div
@@ -120,6 +121,7 @@ const LoginPage = () => {
                     onChange={handleChange}
                     required
                   />
+                  {errors.email && <p className="text-error text-xs mt-1">{errors.email}</p>}
                 </div>
 
                 {/* Password Field */}

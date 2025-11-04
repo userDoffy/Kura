@@ -6,6 +6,7 @@ import { completeVerification, sendVerification } from "../../lib/api.js";
 import { toast } from "react-hot-toast";
 import { uploadToCloudinary } from "../../lib/cloudinary.js";
 import { useThemeStore } from "../../store/useThemeStore.js";
+import { logout } from "../../lib/api.js"
 
 const VerificationPage = () => {
   const { theme } = useThemeStore();
@@ -20,6 +21,14 @@ const VerificationPage = () => {
     language: authUser?.language || "",
     location: authUser?.location || "",
     verificationCode: "",
+  });
+
+  const { mutate: logoutMutation } = useMutation({
+    mutationFn: logout,
+    onSuccess: () => {
+      toast.success("Logged out");
+      queryClient.setQueryData(["authUser"], null);
+    },
   });
 
   // Send Verification Code
@@ -79,36 +88,40 @@ const VerificationPage = () => {
       data-theme={theme}
     >
       <div className="w-full max-w-4xl">
-        
         {/* Compact Header */}
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-primary mb-1">Complete Your Profile</h1>
-          <p className="text-base-content/60 text-sm">Verify your account and set up your profile</p>
+          <h1 className="text-3xl font-bold text-primary mb-1">
+            Complete Your Profile
+          </h1>
+          <p className="text-base-content/60 text-sm">
+            Verify your account and set up your profile
+          </p>
         </div>
 
         {/* Main Card */}
         <div className="bg-base-100 rounded-xl shadow-xl border border-base-300 overflow-hidden">
-          
           {/* Progress Steps */}
           <div className="bg-gradient-to-r from-primary/5 to-secondary/5 px-6 py-4 border-b border-base-300">
             <div className="flex items-center justify-center space-x-4 text-xs">
               <div className="flex items-center text-primary">
-                <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-white text-xs font-bold mr-2">1</div>
+                <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-white text-xs font-bold mr-2">
+                  1
+                </div>
                 <span className="font-medium">Profile Info</span>
               </div>
               <div className="w-8 h-px bg-base-300"></div>
               <div className="flex items-center text-base-content/60">
-                <div className="w-6 h-6 bg-base-300 rounded-full flex items-center justify-center text-base-content/60 text-xs font-bold mr-2">2</div>
+                <div className="w-6 h-6 bg-base-300 rounded-full flex items-center justify-center text-base-content/60 text-xs font-bold mr-2">
+                  2
+                </div>
                 <span>Verification</span>
               </div>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="p-6">
-            
             {/* Profile Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-              
               {/* Profile Picture */}
               <div className="flex flex-col items-center space-y-3">
                 <div
@@ -125,8 +138,12 @@ const VerificationPage = () => {
                   </div>
                 </div>
                 <div className="text-center">
-                  <p className="text-xs font-medium text-base-content">Profile Photo</p>
-                  <p className="text-xs text-base-content/60">Click to upload</p>
+                  <p className="text-xs font-medium text-base-content">
+                    Profile Photo
+                  </p>
+                  <p className="text-xs text-base-content/60">
+                    Click to upload
+                  </p>
                 </div>
                 <input
                   type="file"
@@ -139,7 +156,6 @@ const VerificationPage = () => {
 
               {/* Basic Info */}
               <div className="lg:col-span-2 space-y-4">
-                
                 {/* Username */}
                 <div className="form-control">
                   <label className="label py-1">
@@ -206,7 +222,7 @@ const VerificationPage = () => {
                       type="text"
                       name="location"
                       className="input input-bordered input-sm w-full focus:input-primary transition-colors"
-                      placeholder="e.g., New York, USA"
+                      placeholder="e.g., Kalimati, Kathmandu"
                       value={formData.location}
                       onChange={handleChange}
                       required
@@ -222,11 +238,13 @@ const VerificationPage = () => {
                 <FiMail className="w-4 h-4 text-primary" />
                 <h3 className="font-semibold text-sm">Email Verification</h3>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
                 <div className="md:col-span-2">
                   <label className="label py-1">
-                    <span className="label-text text-sm">Verification Code</span>
+                    <span className="label-text text-sm">
+                      Verification Code
+                    </span>
                   </label>
                   <input
                     type="text"
@@ -239,10 +257,12 @@ const VerificationPage = () => {
                     required
                   />
                 </div>
-                
+
                 <button
                   type="button"
-                  className={`btn btn-outline btn-secondary btn-sm ${isSendingCode ? "loading" : ""}`}
+                  className={`btn btn-outline btn-secondary btn-sm ${
+                    isSendingCode ? "loading" : ""
+                  }`}
                   onClick={() => sendCode()}
                   disabled={isSendingCode || isVerifying}
                 >
@@ -253,9 +273,10 @@ const VerificationPage = () => {
                   )}
                 </button>
               </div>
-              
+
               <p className="text-xs text-base-content/60 mt-2">
-                We'll send a verification code to <strong>{authUser?.email}</strong>
+                We'll send a verification code to{" "}
+                <strong>{authUser?.email}</strong>
               </p>
             </div>
 
@@ -263,7 +284,9 @@ const VerificationPage = () => {
             <div className="mt-6 flex justify-center">
               <button
                 type="submit"
-                className={`btn btn-primary btn-wide ${isVerifying ? "loading" : ""}`}
+                className={`btn btn-primary btn-wide ${
+                  isVerifying ? "loading" : ""
+                }`}
                 disabled={isVerifying || isSendingCode}
               >
                 {isVerifying ? (
@@ -274,6 +297,15 @@ const VerificationPage = () => {
                 ) : (
                   "Complete Verification"
                 )}
+              </button>
+            </div>
+            <div className="text-center mt-4">
+              <button
+                type="button"
+                onClick={() => logoutMutation()}
+                className="btn btn-outline btn-error btn-sm"
+              >
+                Logout
               </button>
             </div>
           </form>
