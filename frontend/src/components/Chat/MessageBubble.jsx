@@ -11,6 +11,8 @@ import {
   X,
   Eye,
   EyeOff,
+  Music,
+  Video,
 } from "lucide-react";
 import { formatTime } from "../../lib/chatUtils";
 
@@ -30,18 +32,30 @@ const MessageBubble = ({ message, isOwn, onDeleteMessage }) => {
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
-  // Check if file is image
+  // File type helpers
   const isImageFile = (fileName) =>
     ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"].includes(
       fileName?.split(".").pop()?.toLowerCase()
     );
 
-  const getFileIcon = (fileName) =>
-    isImageFile(fileName) ? (
-      <Image className="w-4 h-4" />
-    ) : (
-      <File className="w-4 h-4" />
+  // ✅ Added: detect video and audio file types
+  const isVideoFile = (fileName) =>
+    ["mp4"].includes(
+      fileName?.split(".").pop()?.toLowerCase()
     );
+
+  const isAudioFile = (fileName) =>
+    ["mp3", "wav", "ogg","webm"].includes(
+      fileName?.split(".").pop()?.toLowerCase()
+    );
+
+  // Choose file icon
+  const getFileIcon = (fileName) => {
+    if (isImageFile(fileName)) return <Image className="w-4 h-4" />;
+    if (isVideoFile(fileName)) return <Video className="w-4 h-4" />;
+    if (isAudioFile(fileName)) return <Music className="w-4 h-4" />;
+    return <File className="w-4 h-4" />;
+  };
 
   // File download
   const handleFileDownload = () => {
@@ -77,7 +91,6 @@ const MessageBubble = ({ message, isOwn, onDeleteMessage }) => {
     );
   }
 
-  // Check if message has encrypted content (only for text messages)
   const hasEncryptedContent =
     message.messageType === "text" && message.encryptedContent;
 
@@ -85,10 +98,13 @@ const MessageBubble = ({ message, isOwn, onDeleteMessage }) => {
     <div
       className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-2 group`}
     >
-      {/* Action buttons - positioned based on message ownership */}
+      {/* Action buttons */}
       {!message.isOptimistic && (
-        <div className={`flex-shrink-0 flex items-center gap-1 ${isOwn ? 'mr-1' : 'ml-1 order-2'}`}>
-          {/* Encryption toggle button - shown for all text messages */}
+        <div
+          className={`flex-shrink-0 flex items-center gap-1 ${
+            isOwn ? "mr-1" : "ml-1 order-2"
+          }`}
+        >
           {hasEncryptedContent && (
             <button
               onClick={() => setShowEncrypted(!showEncrypted)}
@@ -103,9 +119,8 @@ const MessageBubble = ({ message, isOwn, onDeleteMessage }) => {
             </button>
           )}
 
-          {/* Delete button - only for own messages */}
-          {isOwn && (
-            !showConfirmation ? (
+          {isOwn &&
+            (!showConfirmation ? (
               <button
                 onClick={() => setShowConfirmation(true)}
                 className="btn btn-ghost btn-circle btn-xs text-error hover:bg-error/20"
@@ -132,8 +147,7 @@ const MessageBubble = ({ message, isOwn, onDeleteMessage }) => {
                   <X className="w-4 h-4" />
                 </button>
               </div>
-            )
-          )}
+            ))}
         </div>
       )}
 
@@ -171,6 +185,7 @@ const MessageBubble = ({ message, isOwn, onDeleteMessage }) => {
                 )}
               </div>
 
+              {/* ✅ Image Preview (desktop only) */}
               {!isMobile &&
                 isImageFile(message.fileName) &&
                 message.fileUrl && (
@@ -181,6 +196,26 @@ const MessageBubble = ({ message, isOwn, onDeleteMessage }) => {
                     onClick={handleFileDownload}
                   />
                 )}
+
+              {/* ✅ Video Preview (desktop only) */}
+              {!isMobile &&
+                isVideoFile(message.fileName) &&
+                message.fileUrl && (
+                  <video
+                    src={message.fileUrl}
+                    controls
+                    className="rounded-lg max-w-[250px] max-h-[180px] object-cover"
+                  />
+                )}
+
+              {/* ✅ Audio Player (both desktop + mobile) */}
+              {isAudioFile(message.fileName) && message.fileUrl && (
+                <audio
+                  controls
+                  className="w-full mt-1 rounded-lg"
+                  src={message.fileUrl}
+                />
+              )}
 
               {message.isOptimistic && (
                 <div className="flex items-center gap-2 text-xs opacity-70">
@@ -196,15 +231,13 @@ const MessageBubble = ({ message, isOwn, onDeleteMessage }) => {
                 {showEncrypted ? message.encryptedContent : message.content}
               </p>
               {showEncrypted && (
-                <p className="text-xs opacity-60 italic">
-                  (Encrypted format)
-                </p>
+                <p className="text-xs opacity-60 italic">(Encrypted format)</p>
               )}
             </div>
           )}
         </div>
 
-        {/* Timestamp and read status */}
+        {/* Timestamp + Read Status */}
         <div
           className={`flex items-center gap-1 mt-0.5 px-2 ${
             isOwn ? "justify-end" : ""

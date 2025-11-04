@@ -34,6 +34,11 @@ class SocketService {
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "application/vnd.ms-excel",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "audio/mpeg", // .mp3
+      "audio/wav",
+      "audio/ogg",
+      "audio/webm",
+      "video/mp4",
     ];
 
     this.setupMiddleware();
@@ -86,6 +91,11 @@ class SocketService {
       docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       xls: "application/vnd.ms-excel",
       xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      mp3: "audio/mpeg",
+      wav: "audio/wav",
+      ogg: "audio/ogg",
+      webm: "audio/webm",
+      mp4: "video/mp4",
     };
 
     const mimeType = mimeTypes[ext] || "application/octet-stream";

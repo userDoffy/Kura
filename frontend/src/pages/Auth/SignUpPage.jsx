@@ -248,7 +248,9 @@ const SignUpPage = () => {
                       onChange={handleChange}
                       required
                     />
-                    {errors.username && <p className="text-error text-xs mt-1">{errors.username}</p>}
+                    <div className="h-4">
+                      {errors.username && <p className="text-error text-xs mt-0.5">{errors.username}</p>}
+                    </div>
                   </div>
 
                   <div className="form-control">
@@ -267,7 +269,9 @@ const SignUpPage = () => {
                       onChange={handleChange}
                       required
                     />
-                    {errors.email && <p className="text-error text-xs mt-1">{errors.email}</p>}
+                    <div className="h-4">
+                      {errors.email && <p className="text-error text-xs mt-0.5">{errors.email}</p>}
+                    </div>
                   </div>
 
                   <div className="form-control">
@@ -295,7 +299,9 @@ const SignUpPage = () => {
                         {showPassword ? "👁️" : "👁️‍🗨️"}
                       </button>
                     </div>
-                    {errors.password && <p className="text-error text-xs mt-1">{errors.password}</p>}
+                    <div className="h-4">
+                      {errors.password && <p className="text-error text-xs mt-0.5">{errors.password}</p>}
+                    </div>
                   </div>
 
                   <div className="form-control">
@@ -311,7 +317,9 @@ const SignUpPage = () => {
                       onChange={handleChange}
                       required
                     />
-                    {errors.confirmPassword && <p className="text-error text-xs mt-1">{errors.confirmPassword}</p>}
+                    <div className="h-4">
+                      {errors.confirmPassword && <p className="text-error text-xs mt-0.5">{errors.confirmPassword}</p>}
+                    </div>
                   </div>
 
                   <button type="submit" className="btn btn-primary btn-sm w-full">
