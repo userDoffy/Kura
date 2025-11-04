@@ -11,7 +11,6 @@ export const getRecommendedUsers = async (req, res) => {
         { _id: { $ne: currentUserId } }, //exclude current user
         { _id: { $nin: currentUser.friends } }, // exclude current user's friends
         { isVerified: true },
-        { isAdmin: false },
       ],
     });
     res.status(200).json(recommendedUsers);
