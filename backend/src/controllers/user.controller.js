@@ -157,7 +157,7 @@ export const getOutgoingFriendReqs = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { username, bio, location, language, profilepic } = req.body;
+    const { username, bio, profilepic } = req.body;
 
     const user = await User.findById(userId);
 
@@ -165,8 +165,6 @@ export const updateProfile = async (req, res) => {
 
     user.username = username ?? user.username;
     user.bio = bio ?? user.bio;
-    user.location = location ?? user.location;
-    user.language = language ?? user.language;
     user.profilepic = profilepic ?? user.profilepic;
 
     await user.save();

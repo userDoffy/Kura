@@ -8,22 +8,37 @@ const useForm = (initialState) => {
   const validate = (name, value) => {
     let message = "";
 
+    // --- Username ---
     if (name === "username") {
-      if (!/^[A-Za-z][A-Za-z0-9_]{2,}$/.test(value)) {
+      const trimmedStart = value.trimStart(); // remove leading spaces only
+      if (trimmedStart.length < 3) {
+        message = "Username must be at least 3 characters long";
+      } else if (!/^[A-Za-z][A-Za-z0-9_ ]{2,}$/.test(trimmedStart)) {
         message =
-          "Username must start with a letter & be at least 3 characters";
+          "Username must start with a letter and can include letters, numbers, underscores, and spaces";
       }
     }
 
+    // --- Email ---
     if (name === "email") {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-        message = "Invalid email format";
+      const trimmedValue = value.trim();
+      if (
+        !/^[a-zA-Z0-9](\.?[a-zA-Z0-9_-])*@[a-zA-Z0-9-]+(\.[a-zA-Z]{2,})+$/i.test(
+          trimmedValue
+        )
+      ) {
+        message = "Invalid email format. Example: user@example.com";
       }
     }
 
+    // --- Password ---
     if (name === "password") {
       if (value.length < 6) {
         message = "Password must be at least 6 characters long";
+      } else if (!/[A-Z]/.test(value)) {
+        message = "Password must contain at least one uppercase letter";
+      } else if (!/[a-z]/.test(value)) {
+        message = "Password must contain at least one lowercase letter";
       } else if (!/[0-9]/.test(value)) {
         message = "Password must contain at least one number";
       } else if (!/[^A-Za-z0-9]/.test(value)) {
@@ -31,7 +46,7 @@ const useForm = (initialState) => {
       }
     }
 
-    // ✅ Confirm Password Check (return early — no override)
+    // --- Confirm Password ---
     if (name === "confirmPassword") {
       if (value !== formData.password) {
         setErrors((prev) => ({
@@ -44,10 +59,10 @@ const useForm = (initialState) => {
           return rest;
         });
       }
-      return; 
+      return; // early return to avoid override
     }
 
-    // ✅ Standard validation error update
+    // --- Standard error update ---
     setErrors((prev) => ({
       ...prev,
       [name]: message,
@@ -57,15 +72,31 @@ const useForm = (initialState) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
+    // For username: remove leading spaces only; for passwords keep as is
+    let processedValue;
+    if (name === "username") {
+      processedValue = value.trimStart();
+    } else {
+      processedValue = value;
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: processedValue,
     }));
 
-    validate(name, value);
+    validate(name, processedValue);
   };
 
-  return { formData, handleChange, setFormData, errors };
+  // Optional: check if form is fully valid
+  const isFormValid = () => {
+    return (
+      Object.values(errors).every((err) => !err) &&
+      Object.values(formData).every((field) => field !== "")
+    );
+  };
+
+  return { formData, handleChange, setFormData, errors, isFormValid };
 };
 
 export default useForm;

@@ -49,27 +49,24 @@ export const sendVerificationCode = async (req, res) => {
 
 // Step 2: Complete signup with verification (creates user)
 export const signup = async (req, res) => {
-  const { email, password, username, bio, language, location, profilepic, verificationCode, tempToken } = req.body;
+  const { email, password, username, profilepic, verificationCode, tempToken } = req.body;
 
   try {
     // Validate all fields
-    if (!email || !password || !username || !bio || !language || !location || !verificationCode || !tempToken) {
+    if (!email || !password || !username || !verificationCode || !tempToken) {
       return res.status(400).json({ 
         message: "All fields are required",
         missingFields: [
           !email && "email",
           !password && "password",
           !username && "username",
-          !bio && "bio",
-          !language && "language",
-          !location && "location",
           !verificationCode && "verificationCode",
           !tempToken && "tempToken"
         ].filter(Boolean)
       });
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
@@ -109,9 +106,6 @@ export const signup = async (req, res) => {
       email,
       username,
       password,
-      bio,
-      language,
-      location,
       profilepic: finalProfilePic,
       isVerified: true // User is verified from the start
     });

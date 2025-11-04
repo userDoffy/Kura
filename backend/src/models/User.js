@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema(
       required: true,
       minlength: 6,
     },
-    bio: {
+    bio:{
       type: String,
       default: "",
     },
@@ -29,14 +29,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["online", "offline", "away"],
       default: "offline",
-    },
-    language: {
-      type: String,
-      default: "",
-    },
-    location: {
-      type: String,
-      default: "",
     },
     isVerified: {
       type: Boolean,

@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { signup, sendVerificationCode } from "../../lib/api.js";
 import useForm from "../../hooks/useForm.js";
 import { useThemeStore } from "../../store/useThemeStore.js";
-import { FiCamera, FiUser, FiMapPin, FiGlobe, FiMail, FiLock, FiArrowLeft } from "react-icons/fi";
+import { FiCamera, FiUser, FiMail, FiLock, FiArrowLeft } from "react-icons/fi";
 import { uploadToCloudinary } from "../../lib/cloudinary.js";
 import { toast } from "react-hot-toast";
 
@@ -22,9 +22,6 @@ const SignUpPage = () => {
     email: "",
     password: "",
     confirmPassword: "",
-    bio: "",
-    language: "",
-    location: "",
     profilepic: "",
     verificationCode: "",
   });
@@ -51,7 +48,7 @@ const SignUpPage = () => {
     onSuccess: (data) => {
       setTempToken(data.tempToken);
       toast.success("Verification code sent to your email!");
-      setCurrentStep(3);
+      setCurrentStep(2);
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || "Failed to send code");
@@ -92,29 +89,19 @@ const SignUpPage = () => {
     document.getElementById("profilePicInput").click();
   };
 
-  // Step 1: Basic credentials
+  // Step 1: Basic credentials - send code on submit
   const handleStep1Submit = (e) => {
     e.preventDefault();
     if (errors.username || errors.email || errors.password || errors.confirmPassword) {
       toast.error("Please fix the errors before continuing");
       return;
     }
-    setCurrentStep(2);
-  };
-
-  // Step 2: Profile details and send code
-  const handleStep2Submit = (e) => {
-    e.preventDefault();
-    if (!formData.bio || !formData.language || !formData.location) {
-      toast.error("Please fill all profile fields");
-      return;
-    }
     // Send verification code
     sendCode(formData.email);
   };
 
-  // Step 3: Final verification and signup
-  const handleStep3Submit = (e) => {
+  // Step 2: Profile picture & verification - complete signup
+  const handleStep2Submit = (e) => {
     e.preventDefault();
     if (!formData.verificationCode || formData.verificationCode.length !== 6) {
       toast.error("Please enter a valid 6-digit code");
@@ -199,13 +186,6 @@ const SignUpPage = () => {
                   <div className={`flex items-center ${currentStep >= 2 ? "text-primary" : "text-base-content/40"}`}>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mr-2 ${currentStep >= 2 ? "bg-primary text-white" : "bg-base-300"}`}>
                       2
-                    </div>
-                    <span className="text-xs font-medium hidden sm:inline">Profile</span>
-                  </div>
-                  <div className="flex-1 h-px bg-base-300 mx-2"></div>
-                  <div className={`flex items-center ${currentStep >= 3 ? "text-primary" : "text-base-content/40"}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mr-2 ${currentStep >= 3 ? "bg-primary text-white" : "bg-base-300"}`}>
-                      3
                     </div>
                     <span className="text-xs font-medium hidden sm:inline">Verify</span>
                   </div>
@@ -322,22 +302,24 @@ const SignUpPage = () => {
                     </div>
                   </div>
 
-                  <button type="submit" className="btn btn-primary btn-sm w-full">
-                    Continue
+                  <button type="submit" className="btn btn-primary btn-sm w-full" disabled={isSendingCode}>
+                    {isSendingCode ? "Sending Code..." : "Continue"}
                   </button>
                 </form>
               )}
 
-              {/* Step 2: Profile Details */}
+              {/* Step 2: Profile Picture & Verification */}
               {currentStep === 2 && (
                 <form onSubmit={handleStep2Submit} className="space-y-4">
                   <div className="text-center mb-4">
-                    <h2 className="text-2xl font-bold text-base-content mb-1">Your Profile</h2>
-                    <p className="text-base-content/60 text-sm">Tell us about yourself</p>
+                    <h2 className="text-2xl font-bold text-base-content mb-1">Verify & Setup Profile</h2>
+                    <p className="text-base-content/60 text-sm">
+                      We sent a code to <strong>{formData.email}</strong>
+                    </p>
                   </div>
 
                   {/* Profile Picture */}
-                  <div className="flex flex-col items-center space-y-3">
+                  <div className="flex flex-col items-center space-y-3 mb-4">
                     <div
                       className="relative cursor-pointer group rounded-full overflow-hidden w-20 h-20 shadow-lg hover:shadow-xl transition-shadow ring-2 ring-primary/20 hover:ring-primary/40"
                       onClick={triggerFileInput}
@@ -359,79 +341,6 @@ const SignUpPage = () => {
                       onChange={handleProfilePicUpload}
                       className="hidden"
                     />
-                  </div>
-
-                  <div className="form-control">
-                    <label className="label py-1">
-                      <span className="label-text text-sm font-medium">Bio</span>
-                    </label>
-                    <textarea
-                      name="bio"
-                      rows="2"
-                      className="textarea textarea-bordered textarea-sm w-full resize-none focus:textarea-primary"
-                      placeholder="Tell us about yourself..."
-                      value={formData.bio}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="form-control">
-                      <label className="label py-1">
-                        <span className="label-text text-sm font-medium flex items-center gap-1">
-                          <FiGlobe className="w-3 h-3" />
-                          Language
-                        </span>
-                      </label>
-                      <input
-                        type="text"
-                        name="language"
-                        className="input input-bordered input-sm w-full focus:input-primary"
-                        placeholder="e.g., English"
-                        value={formData.language}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
-
-                    <div className="form-control">
-                      <label className="label py-1">
-                        <span className="label-text text-sm font-medium flex items-center gap-1">
-                          <FiMapPin className="w-3 h-3" />
-                          Location
-                        </span>
-                      </label>
-                      <input
-                        type="text"
-                        name="location"
-                        className="input input-bordered input-sm w-full focus:input-primary"
-                        placeholder="e.g., Kathmandu"
-                        value={formData.location}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className={`btn btn-primary btn-sm w-full ${isSendingCode ? "loading" : ""}`}
-                    disabled={isSendingCode}
-                  >
-                    {isSendingCode ? "Sending Code..." : "Send Verification Code"}
-                  </button>
-                </form>
-              )}
-
-              {/* Step 3: Verification */}
-              {currentStep === 3 && (
-                <form onSubmit={handleStep3Submit} className="space-y-4">
-                  <div className="text-center mb-4">
-                    <h2 className="text-2xl font-bold text-base-content mb-1">Verify Email</h2>
-                    <p className="text-base-content/60 text-sm">
-                      We sent a code to <strong>{formData.email}</strong>
-                    </p>
                   </div>
 
                   <div className="form-control">
