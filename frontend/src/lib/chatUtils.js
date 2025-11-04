@@ -1,107 +1,70 @@
-import CryptoJS from "crypto-js";
+import { sha256 } from "./sha256_manual.js";
+import {
+  aes128EncryptBlock,
+  aes128DecryptBlock,
+  textToBytes,
+  bytesToText,
+  hexToBytes
+} from "./aes_manual.js";
 
-/* ---------- Key Derivation (same as yours) ---------- */
+/* ---------- Key Derivation ---------- */
 export const generateSharedKey = (userId1, userId2) => {
   const sortedIds = [userId1, userId2].sort();
-  return CryptoJS.SHA256(sortedIds.join("-")).toString(); // hex string
+  return sha256(sortedIds.join("-"));
 };
 
-/* ---------- Helpers: WordArray ↔ Uint8Array, Base64 using CryptoJS ---------- */
-const wordArrayToUint8Array = (wordArray) => {
-  const { words, sigBytes } = wordArray;
-  const u8 = new Uint8Array(sigBytes);
-  let i = 0;
-  for (let offset = 0; offset < sigBytes; offset++) {
-    u8[offset] = (words[(offset / 4) | 0] >>> (24 - 8 * (offset % 4))) & 0xff;
-  }
-  return u8;
+/* ---------- Base64 helpers ---------- */
+const base64FromBytes = (bytes) => btoa(String.fromCharCode(...bytes));
+const bytesFromBase64 = (b64) => {
+  const binStr = atob(b64);
+  const arr = new Uint8Array(binStr.length);
+  for (let i = 0; i < binStr.length; i++) arr[i] = binStr.charCodeAt(i);
+  return arr;
 };
 
-const uint8ArrayToWordArray = (u8) => {
-  const words = [];
-  for (let i = 0; i < u8.length; i++) {
-    words[(i / 4) | 0] |= u8[i] << (24 - 8 * (i % 4));
-  }
-  return CryptoJS.lib.WordArray.create(words, u8.length);
+/* ---------- Pad to 16 bytes ---------- */
+const pad16 = (bytes) => {
+  const padded = new Uint8Array(Math.ceil(bytes.length / 16) * 16);
+  padded.set(bytes);
+  return padded;
 };
 
-const base64EncodeBytes = (u8) => {
-  const wa = uint8ArrayToWordArray(u8);
-  return CryptoJS.enc.Base64.stringify(wa);
-};
-
-const base64DecodeToBytes = (b64) => {
-  const wa = CryptoJS.enc.Base64.parse(b64);
-  return wordArrayToUint8Array(wa);
-};
-
-/* ---------- XOR layer (key derived from sharedKey hex) ---------- */
-const deriveXorKeyBytes = (sharedKeyHex, length) => {
-  // Convert hex → bytes, then repeat to desired length
-  const keyBytes = new Uint8Array(sharedKeyHex.length / 2);
-  for (let i = 0; i < keyBytes.length; i++) {
-    keyBytes[i] = parseInt(sharedKeyHex.substr(i * 2, 2), 16);
-  }
-  if (length <= keyBytes.length) return keyBytes.slice(0, length);
-
-  const out = new Uint8Array(length);
-  for (let i = 0; i < length; i++) {
-    out[i] = keyBytes[i % keyBytes.length];
-  }
-  return out;
-};
-
-const xorBytes = (data, key) => {
-  const out = new Uint8Array(data.length);
-  for (let i = 0; i < data.length; i++) out[i] = data[i] ^ key[i % key.length];
-  return out;
-};
-
-/* ---------- Public API: Encrypt / Decrypt with XOR+Base64+AES ---------- */
+/* ---------- Encrypt ---------- */
 export const encryptMessage = (message, senderId, receiverId) => {
-  const sharedKey = generateSharedKey(senderId, receiverId);
+  const sharedKeyHex = generateSharedKey(senderId, receiverId);
+  console.log("Shared Key:", sharedKeyHex);
+  const msgBytes = pad16(textToBytes(message));
+  const keyBytes = hexToBytes(sharedKeyHex.slice(0, 32));
 
-  // 1) UTF-8 → bytes
-  const encoder = new TextEncoder();
-  const msgBytes = encoder.encode(message);
-
-  // 2) XOR with key derived from sharedKey
-  const xorKey = deriveXorKeyBytes(sharedKey, msgBytes.length);
-  const xored = xorBytes(msgBytes, xorKey);
-
-  // 3) Base64 (using CryptoJS to avoid btoa/atob Unicode issues)
-  const b64 = base64EncodeBytes(xored);
-
-  // 4) AES encrypt the Base64 string
-  return CryptoJS.AES.encrypt(b64, sharedKey).toString();
-};
-
-export const decryptMessage = (encryptedMessage, userId1, userId2) => {
-  try {
-    const sharedKey = generateSharedKey(userId1, userId2);
-    console.log("Shared Key generated:", sharedKey);
-
-    // 1) AES decrypt → Base64 string
-    const bytes = CryptoJS.AES.decrypt(encryptedMessage, sharedKey);
-    const b64 = bytes.toString(CryptoJS.enc.Utf8);
-    if (!b64) return "[Failed to decrypt]";
-
-    // 2) Base64 → bytes
-    const xored = base64DecodeToBytes(b64);
-
-    // 3) XOR with same derived key
-    const xorKey = deriveXorKeyBytes(sharedKey, xored.length);
-    const plainBytes = xorBytes(xored, xorKey);
-
-    // 4) bytes → UTF-8
-    const decoder = new TextDecoder();
-    return decoder.decode(plainBytes);
-  } catch {
-    return "[Decryption error]";
+  const ctBlocks = [];
+  for (let i = 0; i < msgBytes.length; i += 16) {
+    ctBlocks.push(aes128EncryptBlock(msgBytes.slice(i, i+16), keyBytes));
   }
+
+  const ctBytes = new Uint8Array(ctBlocks.length*16);
+  ctBlocks.forEach((b, idx) => ctBytes.set(b, idx*16));
+  return base64FromBytes(ctBytes);
 };
 
-/*small utilities*/
+/* ---------- Decrypt ---------- */
+export const decryptMessage = (encryptedMessage, userId1, userId2) => {
+  const sharedKeyHex = generateSharedKey(userId1, userId2);
+  console.log("Shared Key:", sharedKeyHex);
+  const ctBytes = bytesFromBase64(encryptedMessage);
+  const keyBytes = hexToBytes(sharedKeyHex.slice(0,32));
+
+  const ptBlocks = [];
+  for (let i = 0; i < ctBytes.length; i += 16) {
+    ptBlocks.push(aes128DecryptBlock(ctBytes.slice(i, i+16), keyBytes));
+  }
+
+  const ptBytes = new Uint8Array(ptBlocks.length*16);
+  ptBlocks.forEach((b, idx) => ptBytes.set(b, idx*16));
+  return bytesToText(ptBytes).replace(/\0+$/,""); // remove padding
+};
+
+
+/* ---------- Small utilities ---------- */
 export const formatTime = (timestamp) =>
   new Date(timestamp).toLocaleTimeString("en-US", {
     hour: "2-digit",
@@ -118,3 +81,19 @@ export const formatLastSeen = (timestamp) => {
   if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
   return date.toLocaleDateString();
 };
+
+
+//testing (node frontend\src\lib\chatUtils.js)
+// const messages = [
+//   "hello i am peter parker the king of this world and new york city. \nI love this country \t gg\n nt bois123",
+//   "😊 Emoji test"
+// ];
+// const sID = "69098c9dd48f20e89e0ece8e"
+// const rID = "b1c3f4a5d6e7f89012345678"
+// messages.forEach(msg => {
+//   const enc = encryptMessage(msg, sID, rID);
+//   console.log("Encrypted:", enc);
+//   const dec = decryptMessage(enc, sID, rID);
+//   console.log("Decrypted:", dec);
+//   console.log(msg === dec ? "✅ Pass" : "❌ Fail");
+// });
