@@ -86,10 +86,6 @@ const ProfilePage = () => {
   const validatePassword = (value) => {
     if (value.length < 8) {
       return "Password must be at least 8 characters long";
-    } else if (!/[A-Z]/.test(value)) {
-      return "Password must contain at least one uppercase letter";
-    } else if (!/[a-z]/.test(value)) {
-      return "Password must contain at least one lowercase letter";
     } else if (!/[0-9]/.test(value)) {
       return "Password must contain at least one number";
     } else if (!/[^A-Za-z0-9]/.test(value)) {

@@ -14,7 +14,7 @@ class SocketService {
       },
       transports: ["websocket", "polling"],
       // Add max file size limit (10MB)
-      maxHttpBufferSize: 10 * 1024 * 1024,
+      maxHttpBufferSize: 15 * 1024 * 1024,
     });
 
     this.onlineUsers = new Map(); // userId -> socketId
