@@ -10,8 +10,7 @@ import {
 
 /* ---------- Key Derivation ---------- */
 export const generateSharedKey = (userId1, userId2) => {
-  // const secretKey = import.meta.env.sha_secret_key
-  const secretKey = "Ksb#02837jsl!@#aav029jzmxn"
+  const secretKey = import.meta.env.sha_secret_key
   const sortedIds = [userId1, userId2, secretKey].sort();
   return sha256(sortedIds.join("-"));
 };
@@ -84,5 +83,3 @@ export const formatLastSeen = (timestamp) => {
   return date.toLocaleDateString();
 };
 
-
-console.log(generateSharedKey("userA", "userB").length);
