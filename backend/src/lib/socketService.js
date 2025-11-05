@@ -266,7 +266,7 @@ class SocketService {
             }
 
             console.log(
-              `Message sent from ${senderId} to ${receiverId} in chat ${chatId}`
+              `\nMessage: ${message.content}\nsenderID: ${senderId} , recieverID: ${receiverId}\nchatID ${chatId}\n`
             );
           } catch (error) {
             console.error("Error sending message:", error);

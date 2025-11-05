@@ -4,14 +4,15 @@ import {
   aes128DecryptBlock,
   textToBytes,
   bytesToText,
-  hexToBytes
+  hexToBytes,
 } from "./aes_manual.js";
 
 //word -> bytes-> 16 bytes blocks -> encrypt each block -> base64
 
 /* ---------- Key Derivation ---------- */
 export const generateSharedKey = (userId1, userId2) => {
-  const sortedIds = [userId1, userId2].sort();
+  const secretKey = import.meta.env.sha_secret_key
+  const sortedIds = [userId1, userId2, secretKey].sort();
   return sha256(sortedIds.join("-"));
 };
 
@@ -40,11 +41,11 @@ export const encryptMessage = (message, senderId, receiverId) => {
 
   const ctBlocks = [];
   for (let i = 0; i < msgBytes.length; i += 16) {
-    ctBlocks.push(aes128EncryptBlock(msgBytes.slice(i, i+16), keyBytes));
+    ctBlocks.push(aes128EncryptBlock(msgBytes.slice(i, i + 16), keyBytes));
   }
 
-  const ctBytes = new Uint8Array(ctBlocks.length*16);
-  ctBlocks.forEach((b, idx) => ctBytes.set(b, idx*16));
+  const ctBytes = new Uint8Array(ctBlocks.length * 16);
+  ctBlocks.forEach((b, idx) => ctBytes.set(b, idx * 16));
   return base64FromBytes(ctBytes);
 };
 
@@ -53,18 +54,17 @@ export const decryptMessage = (encryptedMessage, userId1, userId2) => {
   const sharedKeyHex = generateSharedKey(userId1, userId2);
   console.log("Shared Key:", sharedKeyHex);
   const ctBytes = bytesFromBase64(encryptedMessage);
-  const keyBytes = hexToBytes(sharedKeyHex.slice(0,32));
+  const keyBytes = hexToBytes(sharedKeyHex.slice(0, 32));
 
   const ptBlocks = [];
   for (let i = 0; i < ctBytes.length; i += 16) {
-    ptBlocks.push(aes128DecryptBlock(ctBytes.slice(i, i+16), keyBytes));
+    ptBlocks.push(aes128DecryptBlock(ctBytes.slice(i, i + 16), keyBytes));
   }
 
-  const ptBytes = new Uint8Array(ptBlocks.length*16);
-  ptBlocks.forEach((b, idx) => ptBytes.set(b, idx*16));
-  return bytesToText(ptBytes).replace(/\0+$/,""); // remove padding
+  const ptBytes = new Uint8Array(ptBlocks.length * 16);
+  ptBlocks.forEach((b, idx) => ptBytes.set(b, idx * 16));
+  return bytesToText(ptBytes).replace(/\0+$/, ""); // remove padding
 };
-
 
 /* ---------- Small utilities ---------- */
 export const formatTime = (timestamp) =>
@@ -84,15 +84,14 @@ export const formatLastSeen = (timestamp) => {
   return date.toLocaleDateString();
 };
 
-
-//testing (node frontend\src\lib\chatUtils.js)
+// testing (node frontend\src\lib\chatUtils.js)
 // const messages = [
 //   "hello i am peter parker the king of this world and new york city. \nI love this country \t gg\n nt bois123",
-//   "😊 Emoji test"
+//   "😊 Emoji test",
 // ];
-// const sID = "69098c9dd48f20e89e0ece8e"
-// const rID = "b1c3f4a5d6e7f89012345678"
-// messages.forEach(msg => {
+// const sID = "69098c9dd48f20e89e0ece8e";
+// const rID = "b1c3f4a5d6e7f89012345678";
+// messages.forEach((msg) => {
 //   const enc = encryptMessage(msg, sID, rID);
 //   console.log("Encrypted:", enc);
 //   const dec = decryptMessage(enc, sID, rID);
