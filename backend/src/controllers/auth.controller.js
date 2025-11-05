@@ -1,12 +1,13 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
-import {sendOtpEmail} from "../lib/nodemailer.js";
+import { sendOtpEmail } from "../lib/nodemailer.js";
 
 // Step 1: Send verification code (before creating user)
 export const sendVerificationCode = async (req, res) => {
-  const { email } = req.body;
+  const { email,username } = req.body;
 
   try {
+
     if (!email) {
       return res.status(400).json({ message: "Email is required" });
     }
@@ -18,18 +19,29 @@ export const sendVerificationCode = async (req, res) => {
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: "Email already exists, please use a different one" });
+      return res
+        .status(400)
+        .json({ message: "Email already exists, please use a different one" });
     }
 
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const verificationCodeHash = await User.hashVerificationCode(verificationCode);
+    const existingUsername = await User.findOne({ username });
+    if (existingUsername) {
+      return res.status(400).json({ message: "Username already taken" });
+    }
+
+    const verificationCode = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
+    const verificationCodeHash = await User.hashVerificationCode(
+      verificationCode
+    );
 
     // Store temporarily in session or return token with hash
     const tempToken = jwt.sign(
-      { 
+      {
         email,
         verificationCodeHash,
-        expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes
+        expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
       },
       process.env.JWT_SECRET_KEY,
       { expiresIn: "15m" }
@@ -37,9 +49,9 @@ export const sendVerificationCode = async (req, res) => {
 
     await sendOtpEmail(email, verificationCode);
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: "Verification code sent",
-      tempToken 
+      tempToken,
     });
   } catch (error) {
     console.log("Error in sendVerificationCode controller", error);
@@ -49,25 +61,37 @@ export const sendVerificationCode = async (req, res) => {
 
 // Step 2: Complete signup with verification (creates user)
 export const signup = async (req, res) => {
-  const { email, password, username, profilepic, verificationCode, tempToken } = req.body;
+  const { email, password, username, profilepic, verificationCode, tempToken } =
+    req.body;
 
   try {
     // Validate all fields
     if (!email || !password || !username || !verificationCode || !tempToken) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: "All fields are required",
         missingFields: [
           !email && "email",
           !password && "password",
           !username && "username",
           !verificationCode && "verificationCode",
-          !tempToken && "tempToken"
-        ].filter(Boolean)
+          !tempToken && "tempToken",
+        ].filter(Boolean),
       });
     }
 
+    // Check if user was created in the meantime
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+    const existingUsername = await User.findOne({ username });
+    if (existingUsername) {
+      return res.status(400).json({ message: "Username already taken" });
+    }
     if (password.length < 8) {
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 8 characters" });
     }
 
     // Verify the temp token
@@ -75,7 +99,9 @@ export const signup = async (req, res) => {
     try {
       decoded = jwt.verify(tempToken, process.env.JWT_SECRET_KEY);
     } catch (err) {
-      return res.status(400).json({ message: "Invalid or expired verification session" });
+      return res
+        .status(400)
+        .json({ message: "Invalid or expired verification session" });
     }
 
     if (decoded.email !== email) {
@@ -87,19 +113,18 @@ export const signup = async (req, res) => {
     }
 
     // Verify the code
-    const isCodeValid = await User.verifyCodeStatic(verificationCode, decoded.verificationCodeHash);
+    const isCodeValid = await User.verifyCodeStatic(
+      verificationCode,
+      decoded.verificationCodeHash
+    );
     if (!isCodeValid) {
       return res.status(400).json({ message: "Invalid verification code" });
     }
 
-    // Check if user was created in the meantime
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: "Email already exists" });
-    }
-
     // Generate profile picture if not provided
-    const finalProfilePic = profilepic || `https://robohash.org/${Math.floor(Math.random() * 100) + 1}.png`;
+    const finalProfilePic =
+      profilepic ||
+      `https://robohash.org/${Math.floor(Math.random() * 100) + 1}.png`;
 
     // Create the user (already verified)
     const newUser = await User.create({
@@ -107,7 +132,7 @@ export const signup = async (req, res) => {
       username,
       password,
       profilepic: finalProfilePic,
-      isVerified: true // User is verified from the start
+      isVerified: true, // User is verified from the start
     });
 
     // Generate auth token
@@ -121,7 +146,7 @@ export const signup = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
       httpOnly: true,
       secure: isProduction,
-      sameSite:isProduction ? "none" : "lax"
+      sameSite: isProduction ? "none" : "lax",
     });
 
     res.status(201).json({ success: true, user: newUser });
@@ -156,7 +181,7 @@ export const login = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
       httpOnly: true,
       secure: isProduction,
-      sameSite:isProduction ? "none" : "lax"
+      sameSite: isProduction ? "none" : "lax",
     });
 
     res.status(200).json({ success: true, user });
@@ -178,4 +203,3 @@ export const logout = (req, res) => {
 
   res.status(200).json({ success: true, message: "Logout successful" });
 };
-

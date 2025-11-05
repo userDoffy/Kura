@@ -3,8 +3,8 @@ import axiosInstance from "./axios.js";
 // ---------------- Auth Apis ----------------
 
 // Step 1: Send verification code (no auth needed)
-export const sendVerificationCode = async (email) => {
-  const response = await axiosInstance.post("/auth/send-verification", { email });
+export const sendVerificationCode = async ({email,username}) => {
+  const response = await axiosInstance.post("/auth/send-verification", { email,username });
   return response.data;
 };
 

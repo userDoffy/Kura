@@ -7,11 +7,11 @@ import {
   hexToBytes,
 } from "./aes_manual.js";
 
-//word -> bytes-> 16 bytes blocks -> encrypt each block -> base64
 
 /* ---------- Key Derivation ---------- */
 export const generateSharedKey = (userId1, userId2) => {
-  const secretKey = import.meta.env.sha_secret_key
+  // const secretKey = import.meta.env.sha_secret_key
+  const secretKey = "Ksb#02837jsl!@#aav029jzmxn"
   const sortedIds = [userId1, userId2, secretKey].sort();
   return sha256(sortedIds.join("-"));
 };
@@ -84,17 +84,5 @@ export const formatLastSeen = (timestamp) => {
   return date.toLocaleDateString();
 };
 
-// testing (node frontend\src\lib\chatUtils.js)
-// const messages = [
-//   "hello i am peter parker the king of this world and new york city. \nI love this country \t gg\n nt bois123",
-//   "😊 Emoji test",
-// ];
-// const sID = "69098c9dd48f20e89e0ece8e";
-// const rID = "b1c3f4a5d6e7f89012345678";
-// messages.forEach((msg) => {
-//   const enc = encryptMessage(msg, sID, rID);
-//   console.log("Encrypted:", enc);
-//   const dec = decryptMessage(enc, sID, rID);
-//   console.log("Decrypted:", dec);
-//   console.log(msg === dec ? "✅ Pass" : "❌ Fail");
-// });
+
+console.log(generateSharedKey("userA", "userB").length);

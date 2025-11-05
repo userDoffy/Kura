@@ -97,7 +97,7 @@ const SignUpPage = () => {
       return;
     }
     // Send verification code
-    sendCode(formData.email);
+    sendCode({ email: formData.email, username: formData.username });
   };
 
   // Step 2: Profile picture & verification - complete signup
@@ -361,7 +361,7 @@ const SignUpPage = () => {
 
                   <button
                     type="button"
-                    onClick={() => sendCode(formData.email)}
+                    onClick={() => sendCode({ email: formData.email, username: formData.username })}
                     className="btn btn-ghost btn-sm w-full"
                     disabled={isSendingCode}
                   >
