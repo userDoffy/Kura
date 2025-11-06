@@ -1,4 +1,4 @@
-/* ---------- Manual SHA-256 Implementation (64-bit length) ---------- */
+/* Manual SHA-256 Implementation (64-bit length)*/
 const K = [
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
   0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -31,27 +31,27 @@ const Maj = (x, y, z) => (x & y) ^ (x & z) ^ (y & z);
 export function sha256(message) {
   const msgBytes = new TextEncoder().encode(message);
 
-  // --- Step 1: Padding ---
+  //Step 1: Padding 
   const bitLen = msgBytes.length * 8;
   const padded = new Uint8Array((((msgBytes.length + 9 + 63) >> 6) << 6));
   padded.set(msgBytes);
-  padded[msgBytes.length] = 0x80; // append '1' bit
+  padded[msgBytes.length] = 0x80;
 
   const view = new DataView(padded.buffer);
 
-  // --- Store full 64-bit message length (big-endian) ---
-  const hi = Math.floor(bitLen / 2 ** 32); // upper 32 bits
-  const lo = bitLen >>> 0;                 // lower 32 bits
-  view.setUint32(padded.length - 8, hi, false); // high 32 bits
-  view.setUint32(padded.length - 4, lo, false); // low 32 bits
+  // Store full 64-bit message length (big-endian) 
+  const hi = Math.floor(bitLen / 2 ** 32); 
+  const lo = bitLen >>> 0;                
+  view.setUint32(padded.length - 8, hi, false); 
+  view.setUint32(padded.length - 4, lo, false); 
 
-  // --- Step 2: Initialize hash values ---
+  //Step 2: Initialize hash values
   let H = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
     0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
   ];
 
-  // --- Step 3: Process each 512-bit block ---
+  //Step 3: Process each 512-bit block
   for (let i = 0; i < padded.length; i += 64) {
     const W = new Uint32Array(64);
 
@@ -76,7 +76,5 @@ export function sha256(message) {
     // add this block's hash to overall hash
     H = H.map((val, idx) => (val + [a, b, c, d, e, f, g, h][idx]) >>> 0);
   }
-
-  // --- Step 4: Produce final hash as hex string ---
   return H.map(h => h.toString(16).padStart(8, "0")).join("");
 }

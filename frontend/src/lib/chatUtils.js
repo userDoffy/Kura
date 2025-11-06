@@ -8,14 +8,14 @@ import {
 } from "./aes_manual.js";
 
 
-/* ---------- Key Derivation ---------- */
+/* Key Derivation */
 export const generateSharedKey = (userId1, userId2) => {
   const secretKey = import.meta.env.sha_secret_key
   const sortedIds = [userId1, userId2, secretKey].sort();
   return sha256(sortedIds.join("-"));
 };
 
-/* ---------- Base64 helpers ---------- */
+/* Base64 helpers */
 const base64FromBytes = (bytes) => btoa(String.fromCharCode(...bytes));
 const bytesFromBase64 = (b64) => {
   const binStr = atob(b64);
@@ -24,14 +24,14 @@ const bytesFromBase64 = (b64) => {
   return arr;
 };
 
-/* ---------- Pad to 16 bytes ---------- */
+/* Pad to 16 bytes  */
 const pad16 = (bytes) => {
   const padded = new Uint8Array(Math.ceil(bytes.length / 16) * 16);
   padded.set(bytes);
   return padded;
 };
 
-/* ---------- Encrypt ---------- */
+/* Encrypt  */
 export const encryptMessage = (message, senderId, receiverId) => {
   const sharedKeyHex = generateSharedKey(senderId, receiverId);
   console.log("Shared Key:", sharedKeyHex);
@@ -48,7 +48,7 @@ export const encryptMessage = (message, senderId, receiverId) => {
   return base64FromBytes(ctBytes);
 };
 
-/* ---------- Decrypt ---------- */
+/* Decrypt */
 export const decryptMessage = (encryptedMessage, userId1, userId2) => {
   const sharedKeyHex = generateSharedKey(userId1, userId2);
   console.log("Shared Key:", sharedKeyHex);
@@ -65,7 +65,7 @@ export const decryptMessage = (encryptedMessage, userId1, userId2) => {
   return bytesToText(ptBytes).replace(/\0+$/, ""); // remove padding
 };
 
-/* ---------- Small utilities ---------- */
+/* Small utilities */
 export const formatTime = (timestamp) =>
   new Date(timestamp).toLocaleTimeString("en-US", {
     hour: "2-digit",

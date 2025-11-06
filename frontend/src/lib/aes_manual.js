@@ -1,6 +1,6 @@
-/* ---------- AES Manual Implementation (AES-128) ---------- */
+/* AES Manual Implementation (AES-128) */
 
-/* ---------- AES S-box ---------- */
+/*AES S-box*/
 const SBOX = [
   0x63, 0x7c, 0x77, 0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
   0xca,0x82,0xc9,0x7d,0xfa,0x59,0x47,0xf0,0xad,0xd4,0xa2,0xaf,0x9c,0xa4,0x72,0xc0,
@@ -20,7 +20,7 @@ const SBOX = [
   0x8c,0xa1,0x89,0x0d,0xbf,0xe6,0x42,0x68,0x41,0x99,0x2d,0x0f,0xb0,0x54,0xbb,0x16
 ];
 
-/* ---------- AES inverse S-box ---------- */
+/*AES inverse S-box*/
 const INV_SBOX = [
   0x52,0x09,0x6a,0xd5,0x30,0x36,0xa5,0x38,0xbf,0x40,0xa3,0x9e,0x81,0xf3,0xd7,0xfb,
   0x7c,0xe3,0x39,0x82,0x9b,0x2f,0xff,0x87,0x34,0x8e,0x43,0x44,0xc4,0xde,0xe9,0xcb,
@@ -42,11 +42,11 @@ const INV_SBOX = [
 
 
 
-/* ---------- Text ↔ Byte Helpers ---------- */
+/* Text ↔ Byte Helpers */
 export const textToBytes = (str) => new Uint8Array([...unescape(encodeURIComponent(str))].map(c => c.charCodeAt(0)));
 export const bytesToText = (bytes) => decodeURIComponent(escape(String.fromCharCode(...bytes)));
 
-/* ---------- AES Galois Field multiplication ---------- */
+/* AES Galois Field multiplication  */
 function mul(a, b) {
   let res = 0;
   for (let i = 0; i < 8; i++) {
@@ -59,14 +59,14 @@ function mul(a, b) {
   return res;
 }
 
-/* ---------- AddRoundKey ---------- */
+/* AddRoundKey */
 function addRoundKey(state, key) {
   const out = new Uint8Array(16);
   for (let i = 0; i < 16; i++) out[i] = state[i] ^ key[i];
   return out;
 }
 
-/* ---------- SubBytes & InvSubBytes ---------- */
+/* SubBytes & InvSubBytes*/
 function subBytes(state) {
   const out = new Uint8Array(16);
   for (let i = 0; i < 16; i++) out[i] = SBOX[state[i]];
@@ -79,7 +79,7 @@ function invSubBytes(state) {
   return out;
 }
 
-/* ---------- ShiftRows & InvShiftRows ---------- */
+/* ShiftRows & InvShiftRows */
 function shiftRows(state) {
   const out = new Uint8Array(16);
   out[0]=state[0]; out[4]=state[4]; out[8]=state[8]; out[12]=state[12];
@@ -98,7 +98,7 @@ function invShiftRows(state) {
   return out;
 }
 
-/* ---------- MixColumns & InvMixColumns ---------- */
+/* MixColumns & InvMixColumns */
 function mixColumns(state) {
   const out = new Uint8Array(16);
   for (let c = 0; c < 4; c++) {
@@ -125,13 +125,13 @@ function invMixColumns(state) {
   return out;
 }
 
-/* ---------- Key Expansion ---------- */
+/*Key Expansion*/
 const RCON = [
   0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1b,0x36
 ];
 
 function expandKey(key) {
-  const w = new Uint8Array(176); // 11*16 bytes
+  const w = new Uint8Array(176); 
   w.set(key);
   let bytesGenerated = 16;
   let rconIter = 0;
@@ -161,11 +161,10 @@ function expandKey(key) {
   return roundKeys;
 }
 
-/* ---------- AES-128 Block Encrypt ---------- */
+/* AES-128 Block Encrypt*/
 export function aes128EncryptBlock(block, key) {
   let state = block.slice();
   const roundKeys = expandKey(key);
-
   state = addRoundKey(state, roundKeys[0]);
   for (let round=1;round<=9;round++) {
     state = subBytes(state);
@@ -173,15 +172,13 @@ export function aes128EncryptBlock(block, key) {
     state = mixColumns(state);
     state = addRoundKey(state, roundKeys[round]);
   }
-  // final round
   state = subBytes(state);
   state = shiftRows(state);
   state = addRoundKey(state, roundKeys[10]);
-
   return state;
 }
 
-/* ---------- AES-128 Block Decrypt ---------- */
+/* AES-128 Block Decrypt */
 export function aes128DecryptBlock(block, key) {
   let state = block.slice();
   const roundKeys = expandKey(key);
@@ -201,7 +198,7 @@ export function aes128DecryptBlock(block, key) {
   return state;
 }
 
-/* ---------- Hex ↔ Bytes ---------- */
+/* Hex ↔ Bytes */
 export const bytesToHex = (bytes) => [...bytes].map(b=>b.toString(16).padStart(2,"0")).join("");
 export const hexToBytes = (hex) => {
   const arr = new Uint8Array(hex.length/2);
