@@ -5,12 +5,12 @@ const useForm = (initialState) => {
   const [formData, setFormData] = useState(initialState);
   const [errors, setErrors] = useState({});
 
-  const validate = (name, value) => {
+  const validate = (name, value, updatedFormData = formData) => {
     let message = "";
 
     // --- Username ---
     if (name === "username") {
-      const trimmedStart = value.trimStart(); // remove leading spaces only
+      const trimmedStart = value.trimStart();
       if (trimmedStart.length < 3) {
         message = "Username must be at least 3 characters long";
       } else if (!/^[A-Za-z][A-Za-z0-9_ ]{2,}$/.test(trimmedStart)) {
@@ -32,7 +32,6 @@ const useForm = (initialState) => {
     }
 
     // --- Password ---
-    // --- Password ---
     if (name === "password") {
       if (value.length < 8) {
         message = "Password must be at least 8 characters long";
@@ -45,7 +44,14 @@ const useForm = (initialState) => {
 
     // --- Confirm Password ---
     if (name === "confirmPassword") {
-      if (value !== formData.password) {
+      if (value !== updatedFormData.password) {
+        message = "Passwords do not match";
+      }
+    }
+
+    // --- Cross-field validation (when password changes, check confirmPassword) ---
+    if (name === "password" && updatedFormData.confirmPassword) {
+      if (updatedFormData.confirmPassword !== value) {
         setErrors((prev) => ({
           ...prev,
           confirmPassword: "Passwords do not match",
@@ -56,7 +62,6 @@ const useForm = (initialState) => {
           return rest;
         });
       }
-      return; // early return to avoid override
     }
 
     // --- Standard error update ---
@@ -68,24 +73,13 @@ const useForm = (initialState) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    const processedValue = name === "username" ? value.trimStart() : value;
 
-    // For username: remove leading spaces only; for passwords keep as is
-    let processedValue;
-    if (name === "username") {
-      processedValue = value.trimStart();
-    } else {
-      processedValue = value;
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: processedValue,
-    }));
-
-    validate(name, processedValue);
+    const updatedFormData = { ...formData, [name]: processedValue };
+    setFormData(updatedFormData);
+    validate(name, processedValue, updatedFormData);
   };
 
-  // Optional: check if form is fully valid
   const isFormValid = () => {
     return (
       Object.values(errors).every((err) => !err) &&
